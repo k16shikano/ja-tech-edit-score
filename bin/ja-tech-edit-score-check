@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Run revision preference check from any directory (edit branch + target file).
+set -euo pipefail
+
+JA_TECH_EDIT_SCORE_HOME="${JA_TECH_EDIT_SCORE_HOME:-${HOME}/dev/ja-tech-edit-score}"
+PYTHON="${JA_TECH_EDIT_SCORE_PYTHON:-${JA_TECH_EDIT_SCORE_HOME}/.venv/bin/python3}"
+if [[ ! -x "${PYTHON}" ]]; then
+  PYTHON=python3
+fi
+
+exec "${PYTHON}" "${JA_TECH_EDIT_SCORE_HOME}/scripts/check_revision.py" "$@"

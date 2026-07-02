@@ -1,0 +1,4 @@
+# One Git repository path per line (absolute paths recommended).
+# Lines starting with # are ignored.
+#
+# /path/to/your/book-repo

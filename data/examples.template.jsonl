@@ -1,0 +1,1 @@
+{"id": "example-project-src-chapter-001", "project_id": "example-project", "source_text": "修正前の段落です。", "edited_text": "推敲後の段落です。", "source_reference": "src/chapter.md:draft@abc1234->edit/chapter@def5678", "rationale": "branch pair mined", "labels": ["branch_pair_mined"], "author": "human", "review_result": "accepted", "created_at": "2026-01-01T00:00:00+00:00"}

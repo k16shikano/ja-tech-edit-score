@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Prose Preference Example",
+  "type": "object",
+  "required": [
+    "id",
+    "source_text",
+    "edited_text",
+    "author",
+    "project_id",
+    "created_at"
+  ],
+  "properties": {
+    "id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "source_text": { "type": "string" },
+    "edited_text": { "type": "string" },
+    "source_reference": { "type": "string" },
+    "rationale": { "type": "string" },
+    "labels": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "author": {
+      "type": "string",
+      "enum": ["human", "agent"]
+    },
+    "review_result": {
+      "type": "string",
+      "enum": ["accepted", "rejected", "pending"]
+    },
+    "created_at": {
+      "type": "string",
+      "description": "ISO-8601 timestamp"
+    }
+  },
+  "additionalProperties": false
+}
+
