@@ -16,39 +16,41 @@
 
 ```mermaid
 flowchart TB
-  subgraph prep [0. ブランチ]
-    B1[下書き: draft-chapter 等]
-    B2[推敲: edit/draft-chapter]
+  subgraph prep ["0 ブランチ"]
+    B1["下書き draft-chapter 等"]
+    B2["推敲 edit/draft-chapter"]
   end
 
-  subgraph write [1. 推敲]
-    W1[japanese-tech-writing を添付]
-    W2[節単位で Cursor に推敲依頼]
-    W3[ja-tech-edit-score-check で選好スコア]
-    W4[迷う段落は ja-tech-edit-score-compare]
+  subgraph write ["1 推敲"]
+    W1["japanese-tech-writing を添付"]
+    W2["節単位で Cursor に推敲依頼"]
+    W3["ja-tech-edit-score-check"]
+    W4["ja-tech-edit-score-compare"]
   end
 
-  subgraph qc [2. 品質確認]
-    Q1[構成・用語・組版]
-    Q2[著者の通し読み]
+  subgraph qc ["2 品質確認"]
+    Q1["構成 用語 組版"]
+    Q2["著者の通し読み"]
   end
 
-  subgraph learn [3. 還流]
-    L1[make data で diff 採掘]
-    L2[make train でモデル更新]
+  subgraph learn ["3 還流"]
+    L1["make data で diff 採掘"]
+    L2["make train でモデル更新"]
   end
 
-  prep --> write --> qc --> learn
+  B2 --> W1
+  W4 --> Q1
+  Q2 --> L1
 ```
 
 選好評価モデル単体の位置づけ:
 
 ```mermaid
 flowchart LR
-  G[japanese-tech-writing + Cursor 等<br/>推敲案を生成]
-  S[ja-tech-edit-score-check / compare<br/>選好スコアを確認]
-  C[著者が採用して commit]
-  L[make data → make train<br/>選好評価モデルを更新]
+  G["japanese-tech-writing と Cursor で推敲案を生成"]
+  S["ja-tech-edit-score-check / compare で選好スコアを確認"]
+  C["著者が採用して commit"]
+  L["make data と make train でモデルを更新"]
   G --> S --> C --> L
 ```
 
