@@ -136,6 +136,7 @@ make train
 | ファイル | 内容 |
 |----------|------|
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | 章推敲の手順 |
+| [docs/SFT-DPO.md](docs/SFT-DPO.md) | 生成モデル向け SFT / DPO 構想メモ（未実装） |
 | [data/README.md](data/README.md) | 学習データディレクトリの説明 |
 | [outputs/README.md](outputs/README.md) | 同梱モデルの説明 |
 | [skills/README.md](skills/README.md) | Cursor Skill のインストール |
