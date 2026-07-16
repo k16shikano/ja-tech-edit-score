@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Convergence check: stop when another rewrite no longer improves the draft.
+set -euo pipefail
+
+JA_TECH_EDIT_SCORE_HOME="${JA_TECH_EDIT_SCORE_HOME:-${HOME}/dev/ja-tech-edit-score}"
+PYTHON="${JA_TECH_EDIT_SCORE_PYTHON:-${JA_TECH_EDIT_SCORE_HOME}/.venv/bin/python3}"
+STATIC_MODEL="${JA_TECH_EDIT_SCORE_MODEL:-${JA_TECH_EDIT_SCORE_HOME}/outputs/pref-static}"
+BT_MODEL="${JA_TECH_EDIT_SCORE_BT_MODEL:-${JA_TECH_EDIT_SCORE_HOME}/outputs/pref-bt}"
+
+if [[ ! -x "${PYTHON}" ]]; then
+  PYTHON=python3
+fi
+
+if [[ $# -eq 0 ]]; then
+  echo "usage: ja-tech-edit-score-converge --current-file ... --revised-file ... [--mode pair|bt]" >&2
+  exit 1
+fi
+
+# Inject default model paths unless the caller already set them.
+extra=()
+if [[ " $* " != *" --static-model "* ]]; then
+  extra+=(--static-model "${STATIC_MODEL}")
+fi
+if [[ " $* " != *" --bt-model "* ]]; then
+  extra+=(--bt-model "${BT_MODEL}")
+fi
+
+exec "${PYTHON}" "${JA_TECH_EDIT_SCORE_HOME}/scripts/check_convergence.py" \
+  "${extra[@]}" \
+  "$@"

@@ -1,0 +1,29 @@
+# 高火力 DOK 向け: 編集 SFT データと学習脚本をイメージに同梱する
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements-edit-sft.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements-edit-sft.txt
+
+COPY scripts/steering_utils.py scripts/train_edit_sft.py scripts/
+COPY scripts/dok_edit_sft.sh /app/dok_edit_sft.sh
+RUN chmod +x /app/dok_edit_sft.sh
+
+# 学習データ（非公開原稿由来。非公開レジストリにのみ push）
+COPY data/edit_sft/train.jsonl data/edit_sft/train.jsonl
+COPY data/edit_sft/stats.json data/edit_sft/stats.json
+
+ENV PYTHONUNBUFFERED=1
+ENV MODEL=Qwen/Qwen3-8B
+ENV LIMIT=0
+ENV EPOCHS=2
+ENV LORA_R=16
+ENV LORA_ALPHA=32
+ENV MAX_SEQ_LENGTH=2048
+ENV BATCH_SIZE=1
+ENV GRAD_ACCUM=8
+ENV LEARNING_RATE=2e-4
+
+ENTRYPOINT ["/bin/bash", "/app/dok_edit_sft.sh"]

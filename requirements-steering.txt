@@ -1,0 +1,8 @@
+# GPU ジョブ用（activation steering フェーズ A / 編集モデル実験）
+# 通常の make venv には入れない。外部 GPU コンテナで:
+#   pip install -r requirements-steering.txt
+torch>=2.1.0
+transformers>=4.40.0
+accelerate>=0.27.0
+safetensors>=0.4.0
+# プローブは本体 requirements の numpy / scikit-learn を使う

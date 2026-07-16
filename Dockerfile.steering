@@ -1,0 +1,28 @@
+# 高火力 DOK 向け: 推敲ペアと脚本をイメージに同梱する（オブジェクトストレージ不要）
+# ベースは CUDA 付き PyTorch。モデル本体は実行時に Hugging Face から取得する。
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements.txt requirements-steering.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements.txt -r requirements-steering.txt
+
+COPY scripts/steering_utils.py scripts/extract_revision_activations.py scripts/
+COPY scripts/dok_steering_extract.sh /app/dok_steering_extract.sh
+RUN chmod +x /app/dok_steering_extract.sh
+
+# 学習ペア（非公開原稿由来。イメージは非公開レジストリにのみ push すること）
+COPY data/revision_pairs.jsonl data/revision_pairs.jsonl
+# 判定プロンプトに前置する文章規範
+COPY data/tech-writing-norms.md data/tech-writing-norms.md
+
+ENV PYTHONUNBUFFERED=1
+ENV MODEL=Qwen/Qwen3-8B
+ENV DEVICE=cuda
+ENV LIMIT=0
+ENV BATCH_SIZE=1
+ENV MAX_LENGTH=2048
+ENV PROMPT_MODES="reading norms"
+
+ENTRYPOINT ["/bin/bash", "/app/dok_steering_extract.sh"]

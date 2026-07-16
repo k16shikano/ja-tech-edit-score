@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Rank N revision candidates with the BT reward model (Best-of-N).
+set -euo pipefail
+
+JA_TECH_EDIT_SCORE_HOME="${JA_TECH_EDIT_SCORE_HOME:-${HOME}/dev/ja-tech-edit-score}"
+PYTHON="${JA_TECH_EDIT_SCORE_PYTHON:-${JA_TECH_EDIT_SCORE_HOME}/.venv/bin/python3}"
+MODEL="${JA_TECH_EDIT_SCORE_BT_MODEL:-${JA_TECH_EDIT_SCORE_HOME}/outputs/pref-bt}"
+
+if [[ ! -x "${PYTHON}" ]]; then
+  PYTHON=python3
+fi
+
+if [[ $# -eq 0 ]]; then
+  echo "usage: ja-tech-edit-score-rank --source-file ... --candidate-file ... [--candidate-file ...] [--format markdown]" >&2
+  echo "   or: ja-tech-edit-score-rank --source-text ... --candidates-dir /tmp/cands/" >&2
+  exit 1
+fi
+
+exec "${PYTHON}" "${JA_TECH_EDIT_SCORE_HOME}/scripts/rank_pref_bt.py" \
+  --model "${MODEL}" \
+  "$@"

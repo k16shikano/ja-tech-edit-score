@@ -7,6 +7,7 @@
 - **`examples.raw.jsonl`**：ブランチ diff から採掘した修正前と修正後のペア
 - **`examples.db`**：SQLite への取り込み結果
 - `dpo_dataset.jsonl`, `dpo_curated.jsonl`, `pref_dataset.jsonl`
+- **`revision_pairs.jsonl`**：steering / 編集モデル用の draft・revised 対照（`make steering-pairs`）
 - **`pref_split/`**：train / valid / test 分割
 - `curate_report.json`
 

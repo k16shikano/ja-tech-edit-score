@@ -13,7 +13,10 @@ data/dpo_curated.jsonl
 data/pref_dataset.jsonl
 data/pref_split/
 data/curate_report.json
+data/revision_pairs.jsonl
+data/edit_sft/
 data/batch_import_repos.txt
+tmp/
 
 # Other output under outputs/ (pref-static model is bundled)
 outputs/*

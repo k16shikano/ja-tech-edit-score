@@ -209,4 +209,5 @@ make train
 | 規範 | `japanese-tech-writing` Skill |
 | 推敲案の生成 | Cursor 等 |
 | 選好スコア | ja-tech-edit-score（`ja-tech-edit-score-check`, `ja-tech-edit-score-compare`, Skill: `skills/ja-tech-edit-score-check`） |
+| Best-of-N / 収束 | `ja-tech-edit-score-rank`, `ja-tech-edit-score-converge` |
 | 最終確認 | 著者 + PDF |

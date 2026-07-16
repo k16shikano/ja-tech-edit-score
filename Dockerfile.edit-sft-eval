@@ -1,0 +1,32 @@
+# 高火力 DOK: 編集モデル評価生成（held-out 推敲）
+# 学習済み LoRA・heldout・規範を同梱。ベース LLM は実行時に HF から取得。
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements-edit-sft.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements-edit-sft.txt
+
+COPY scripts/generate_edit_sft.py scripts/
+COPY scripts/dok_edit_sft_eval.sh /app/dok_edit_sft_eval.sh
+RUN chmod +x /app/dok_edit_sft_eval.sh
+
+# 非公開原稿由来。非公開レジストリのみへ push
+COPY data/edit_sft/heldout.jsonl data/edit_sft/heldout.jsonl
+COPY data/tech-writing-norms.md data/tech-writing-norms.md
+COPY outputs/edit-sft/Qwen__Qwen3-8B/adapter /app/adapter
+
+ENV PYTHONUNBUFFERED=1
+ENV MODEL=Qwen/Qwen3-8B
+ENV ADAPTER=/app/adapter
+ENV LIMIT=64
+ENV EVAL_MODES="adapter base_norms"
+ENV MAX_NEW_TOKENS=512
+ENV MAX_INPUT_TOKENS=3072
+ENV LOAD_IN_4BIT=1
+ENV DEVICE=cuda
+ENV TRUST_REMOTE_CODE=1
+ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+ENTRYPOINT ["/bin/bash", "/app/dok_edit_sft_eval.sh"]
