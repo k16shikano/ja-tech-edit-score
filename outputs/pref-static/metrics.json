@@ -1,36 +1,38 @@
 {
-  "eval_accuracy": 0.971900826446281,
-  "eval_log_loss": 0.0707077905535698,
-  "train_samples": 9398,
-  "eval_samples": 1210,
-  "truncate_dim": 256,
-  "embedding_model": "hotchpotch/static-embedding-japanese",
+  "eval_accuracy": 0.9831460674157303,
+  "eval_log_loss": 0.03450993075966835,
+  "train_samples": 9660,
+  "eval_samples": 1246,
+  "truncate_dim": null,
+  "text_prefix": "文章: ",
+  "max_seq_length": 512,
+  "embedding_model": "cl-nagoya/ruri-v3-30m",
   "feature_version": "source-a-b-diff-sim-v1",
   "classification_report": {
     "0": {
-      "precision": 0.9734660033167496,
-      "recall": 0.9702479338842975,
-      "f1-score": 0.9718543046357616,
-      "support": 605.0
+      "precision": 0.9823717948717948,
+      "recall": 0.9839486356340289,
+      "f1-score": 0.983159582999198,
+      "support": 623.0
     },
     "1": {
-      "precision": 0.9703459637561779,
-      "recall": 0.9735537190082645,
-      "f1-score": 0.971947194719472,
-      "support": 605.0
+      "precision": 0.9839228295819936,
+      "recall": 0.9823434991974318,
+      "f1-score": 0.983132530120482,
+      "support": 623.0
     },
-    "accuracy": 0.971900826446281,
+    "accuracy": 0.9831460674157303,
     "macro avg": {
-      "precision": 0.9719059835364637,
-      "recall": 0.971900826446281,
-      "f1-score": 0.9719007496776169,
-      "support": 1210.0
+      "precision": 0.9831473122268942,
+      "recall": 0.9831460674157304,
+      "f1-score": 0.98314605655984,
+      "support": 1246.0
     },
     "weighted avg": {
-      "precision": 0.9719059835364638,
-      "recall": 0.971900826446281,
-      "f1-score": 0.9719007496776169,
-      "support": 1210.0
+      "precision": 0.9831473122268942,
+      "recall": 0.9831460674157303,
+      "f1-score": 0.9831460565598399,
+      "support": 1246.0
     }
   }
 }

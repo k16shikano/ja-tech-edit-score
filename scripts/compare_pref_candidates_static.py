@@ -3,9 +3,8 @@ import argparse
 from pathlib import Path
 
 from joblib import load
-from sentence_transformers import SentenceTransformer
 
-from pref_static_utils import static_pair_preference_inference
+from pref_static_utils import load_sentence_model_from_artifact, static_pair_preference_inference
 
 
 def read_text(value: str | None, file_path: str | None) -> str:
@@ -38,11 +37,7 @@ def main() -> None:
   candidate_b = read_text(args.candidate_b, args.candidate_b_file)
 
   artifact = load(Path(args.model) / "model.joblib")
-  sentence_model = SentenceTransformer(
-    artifact["sentence_model_name"],
-    device="cpu",
-    truncate_dim=artifact["truncate_dim"],
-  )
+  sentence_model = load_sentence_model_from_artifact(artifact, device="cpu")
 
   score_a, score_b, pref_detail = static_pair_preference_inference(
     artifact["classifier"],
@@ -52,6 +47,7 @@ def main() -> None:
     candidate_b,
     normalize_embeddings=artifact["normalize_embeddings"],
     symmetric=args.pref_symmetric_pair,
+    text_prefix=str(artifact.get("text_prefix", "")),
   )
 
   winner = "B" if score_b > score_a else "A"

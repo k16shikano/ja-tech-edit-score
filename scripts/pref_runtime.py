@@ -13,6 +13,8 @@ from sentence_transformers import SentenceTransformer
 from pref_static_utils import (
   aggregate_symmetric_candidate_scores,
   assemble_preference_feature_vector,
+  encode_texts,
+  load_sentence_model_from_artifact,
   preference_ab_scores_from_predict_proba,
 )
 
@@ -22,6 +24,7 @@ class LoadedPrefModel:
   classifier: object
   sentence_model: SentenceTransformer
   normalize_embeddings: bool
+  text_prefix: str
   model_dir: str
 
 
@@ -30,15 +33,12 @@ def load_pref_model(model_dir: Path) -> LoadedPrefModel:
   if not artifact_path.is_file():
     raise FileNotFoundError(f"model not found: {artifact_path}")
   artifact = load(artifact_path)
-  sentence_model = SentenceTransformer(
-    artifact["sentence_model_name"],
-    device="cpu",
-    truncate_dim=artifact["truncate_dim"],
-  )
+  sentence_model = load_sentence_model_from_artifact(artifact, device="cpu")
   return LoadedPrefModel(
     classifier=artifact["classifier"],
     sentence_model=sentence_model,
-    normalize_embeddings=artifact["normalize_embeddings"],
+    normalize_embeddings=bool(artifact["normalize_embeddings"]),
+    text_prefix=str(artifact.get("text_prefix", "")),
     model_dir=str(model_dir),
   )
 
@@ -48,16 +48,17 @@ def _encode_unique(
   texts: list[str],
   *,
   normalize_embeddings: bool,
+  text_prefix: str,
   batch_size: int,
 ) -> dict[str, np.ndarray]:
   if not texts:
     return {}
-  embeddings = sentence_model.encode(
+  embeddings = encode_texts(
+    sentence_model,
     texts,
     batch_size=batch_size,
-    convert_to_numpy=True,
-    show_progress_bar=False,
     normalize_embeddings=normalize_embeddings,
+    text_prefix=text_prefix,
   )
   return {
     text: np.asarray(vec, dtype=np.float32)
@@ -87,6 +88,7 @@ def score_edit_vs_base_batch(
     loaded.sentence_model,
     unique,
     normalize_embeddings=loaded.normalize_embeddings,
+    text_prefix=loaded.text_prefix,
     batch_size=batch_size,
   )
 

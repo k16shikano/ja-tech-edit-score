@@ -16,19 +16,36 @@ from pref_static_utils import (
   collect_unique_texts,
   encode_text_map,
   load_jsonl,
+  normalize_truncate_dim,
 )
 
 
 def main() -> None:
   parser = argparse.ArgumentParser()
-  parser.add_argument("--model", default="hotchpotch/static-embedding-japanese", help="sentence embedding model")
+  parser.add_argument("--model", default="cl-nagoya/ruri-v3-30m", help="sentence embedding model")
   parser.add_argument("--train-file", required=True, help="train jsonl")
   parser.add_argument("--eval-file", required=True, help="valid jsonl")
   parser.add_argument("--output-dir", required=True, help="output directory")
   parser.add_argument("--max-train-samples", type=int, default=-1)
   parser.add_argument("--max-eval-samples", type=int, default=-1)
-  parser.add_argument("--truncate-dim", type=int, default=256, help="embedding dimension truncation")
-  parser.add_argument("--batch-size", type=int, default=128, help="embedding batch size")
+  parser.add_argument(
+    "--truncate-dim",
+    type=int,
+    default=0,
+    help="embedding dimension truncation (0 以下で無効)",
+  )
+  parser.add_argument(
+    "--text-prefix",
+    default="文章: ",
+    help="埋め込み前プレフィックス（Ruri は「文章: 」）",
+  )
+  parser.add_argument(
+    "--max-seq-length",
+    type=int,
+    default=512,
+    help="トークン長上限（0 でモデル既定）",
+  )
+  parser.add_argument("--batch-size", type=int, default=32, help="embedding batch size")
   parser.add_argument("--max-iter", type=int, default=2000, help="logistic regression max_iter")
   parser.add_argument("--c", type=float, default=1.0, help="inverse regularization strength")
   args = parser.parse_args()
@@ -41,11 +58,10 @@ def main() -> None:
   if not eval_rows:
     raise SystemExit("eval set is empty")
 
-  model = SentenceTransformer(
-    args.model,
-    device="cpu",
-    truncate_dim=args.truncate_dim,
-  )
+  truncate_dim = normalize_truncate_dim(args.truncate_dim)
+  model = SentenceTransformer(args.model, device="cpu", truncate_dim=truncate_dim)
+  if args.max_seq_length > 0:
+    model.max_seq_length = args.max_seq_length
   normalize_embeddings = True
 
   all_rows = train_rows + eval_rows
@@ -55,6 +71,7 @@ def main() -> None:
     unique_texts,
     batch_size=args.batch_size,
     normalize_embeddings=normalize_embeddings,
+    text_prefix=args.text_prefix,
   )
 
   x_train = build_feature_matrix(train_rows, text_to_embedding)
@@ -90,7 +107,9 @@ def main() -> None:
   artifact = {
     "classifier": classifier,
     "sentence_model_name": args.model,
-    "truncate_dim": args.truncate_dim,
+    "truncate_dim": truncate_dim,
+    "text_prefix": args.text_prefix,
+    "max_seq_length": args.max_seq_length if args.max_seq_length > 0 else None,
     "normalize_embeddings": normalize_embeddings,
     "feature_version": "source-a-b-diff-sim-v1",
   }
@@ -101,7 +120,9 @@ def main() -> None:
     "eval_log_loss": eval_log_loss,
     "train_samples": len(train_rows),
     "eval_samples": len(eval_rows),
-    "truncate_dim": args.truncate_dim,
+    "truncate_dim": truncate_dim,
+    "text_prefix": args.text_prefix,
+    "max_seq_length": artifact["max_seq_length"],
     "embedding_model": args.model,
     "feature_version": artifact["feature_version"],
     "classification_report": report,

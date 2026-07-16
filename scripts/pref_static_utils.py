@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+from sentence_transformers import SentenceTransformer
 
 
 def load_jsonl(path: str, limit: int = -1) -> list[dict]:
@@ -30,24 +31,94 @@ def collect_unique_texts(rows: list[dict]) -> list[str]:
   return texts
 
 
+def normalize_truncate_dim(value) -> int | None:
+  """0 / 負値 / None は切り捨てなし。"""
+  if value is None:
+    return None
+  dim = int(value)
+  return dim if dim > 0 else None
+
+
+def load_sentence_model_from_artifact(artifact: dict, *, device: str = "cpu") -> SentenceTransformer:
+  truncate_dim = normalize_truncate_dim(artifact.get("truncate_dim"))
+  model = SentenceTransformer(
+    artifact["sentence_model_name"],
+    device=device,
+    truncate_dim=truncate_dim,
+  )
+  max_seq_length = artifact.get("max_seq_length")
+  if max_seq_length:
+    model.max_seq_length = int(max_seq_length)
+  return model
+
+
+def encode_texts(
+  model,
+  texts: list[str],
+  *,
+  batch_size: int,
+  normalize_embeddings: bool,
+  text_prefix: str = "",
+  show_progress_bar: bool = False,
+) -> np.ndarray:
+  if not texts:
+    return np.zeros((0, 0), dtype=np.float32)
+  payloads = [text_prefix + text for text in texts]
+  embeddings = model.encode(
+    payloads,
+    batch_size=batch_size,
+    convert_to_numpy=True,
+    show_progress_bar=show_progress_bar,
+    normalize_embeddings=normalize_embeddings,
+  )
+  return np.asarray(embeddings, dtype=np.float32)
+
+
 def encode_text_map(
   model,
   texts: list[str],
   *,
   batch_size: int,
   normalize_embeddings: bool,
+  text_prefix: str = "",
+  show_progress_bar: bool = True,
 ) -> dict[str, np.ndarray]:
-  """文面→埋め込み。**同一文字列が複数回出るときは語の並び順が失われ、最後のベクトルのみになる**ので、順序付きでの推論では `sentence_model.encode([...])` を使う。"""
+  """文面→埋め込み。**同一文字列が複数回出るときは語の並び順が失われ、最後のベクトルのみになる**ので、順序付きでの推論では `encode_texts` を使う。"""
   if not texts:
     return {}
-  embeddings = model.encode(
+  embeddings = encode_texts(
+    model,
     texts,
     batch_size=batch_size,
-    convert_to_numpy=True,
-    show_progress_bar=True,
     normalize_embeddings=normalize_embeddings,
+    text_prefix=text_prefix,
+    show_progress_bar=show_progress_bar,
   )
   return {text: np.asarray(emb, dtype=np.float32) for text, emb in zip(texts, embeddings, strict=True)}
+
+
+def assemble_pointwise_feature_vector(
+  source: np.ndarray,
+  candidate: np.ndarray,
+  *,
+  len_source: float,
+  len_candidate: float,
+) -> np.ndarray:
+  """候補 1 件ぶんのスコア特徴（BT 報酬モデル用）。"""
+  diff = source - candidate
+  abs_diff = np.abs(diff)
+  cos = float(np.dot(source, candidate))
+  numeric = np.asarray(
+    [
+      cos,
+      len_source,
+      len_candidate,
+      len_candidate - len_source,
+      abs(len_candidate - len_source),
+    ],
+    dtype=np.float32,
+  )
+  return np.concatenate([source, candidate, diff, abs_diff, numeric]).astype(np.float32, copy=False)
 
 
 def assemble_preference_feature_vector(
@@ -149,6 +220,7 @@ def static_pair_preference_inference(
   normalize_embeddings: bool,
   symmetric: bool,
   encode_batch_size: int | None = None,
+  text_prefix: str = "",
 ) -> tuple[float, float, dict[str, float]]:
   """`train_pref_static` で学習した分類器で、(candidate_a を先頭スロットとみなした) ペア単位スコア・対称合成スコアを返す。
 
@@ -162,15 +234,16 @@ def static_pair_preference_inference(
 
   if not symmetric:
     bs = encode_batch_size if encode_batch_size is not None else 3
-    embeddings = sentence_model.encode(
+    embeddings = encode_texts(
+      sentence_model,
       [source_text, candidate_a, candidate_b],
       batch_size=bs,
-      convert_to_numpy=True,
       normalize_embeddings=normalize_embeddings,
+      text_prefix=text_prefix,
     )
-    v_src = np.asarray(embeddings[0], dtype=np.float32)
-    v_a = np.asarray(embeddings[1], dtype=np.float32)
-    v_b = np.asarray(embeddings[2], dtype=np.float32)
+    v_src = embeddings[0]
+    v_a = embeddings[1]
+    v_b = embeddings[2]
     feat_row = assemble_preference_feature_vector(
       v_src, v_a, v_b, len_source=len_s, len_a=len_a, len_b=len_b
     ).reshape(1, -1)
@@ -178,23 +251,24 @@ def static_pair_preference_inference(
     p1, p0 = preference_ab_scores_from_predict_proba(classes, probs)
     return float(p1), float(p0), {}
 
-  bs = encode_batch_size if encode_batch_size is not None else 5
-  embeddings = sentence_model.encode(
-    [source_text, candidate_a, candidate_b, candidate_b, candidate_a],
+  bs = encode_batch_size if encode_batch_size is not None else 3
+  embeddings = encode_texts(
+    sentence_model,
+    [source_text, candidate_a, candidate_b],
     batch_size=bs,
-    convert_to_numpy=True,
     normalize_embeddings=normalize_embeddings,
+    text_prefix=text_prefix,
   )
-  v_src = np.asarray(embeddings[0], dtype=np.float32)
-  v_a = np.asarray(embeddings[1], dtype=np.float32)
-  v_b = np.asarray(embeddings[2], dtype=np.float32)
+  v_src = embeddings[0]
+  v_a = embeddings[1]
+  v_b = embeddings[2]
   feat_ab = assemble_preference_feature_vector(
     v_src, v_a, v_b, len_source=len_s, len_a=len_a, len_b=len_b
   ).reshape(1, -1)
   feat_ba = assemble_preference_feature_vector(
     v_src,
-    np.asarray(embeddings[3], dtype=np.float32),
-    np.asarray(embeddings[4], dtype=np.float32),
+    v_b,
+    v_a,
     len_source=len_s,
     len_a=len_b,
     len_b=len_a,
