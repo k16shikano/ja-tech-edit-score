@@ -3,8 +3,8 @@
 
 方針（ハイブリッド C）:
   - base_text  = 下書き節（実編集の source 側）
-  - human 候補 = 編集者の実編集（gold の想定だが、順位付けは人手で行う）
-  - base 候補  = 下書きのまま（identity）
+  - human 候補 = 編集者の実編集
+  - base 候補  = 下書きのまま（identity / copy）
   - deg-* 候補 = 実編集テキストに制御された構成改悪を加えたもの。
                  文レベルの質は gold と同一なので、構成の識別力だけを試す。
 
@@ -13,7 +13,8 @@
   deg-split   一文ごとに段落化し、過剰分割する
   deg-reverse 本文段落の順序を逆転する（トピックの流れを壊す）
 
-モデル推敲候補は本脚本では作らない（必要なら v1 と同じ手順で後から追記する）。
+順位は定義により固定（人手並べ替え不要）:
+  human > deg-join > deg-split > base > deg-reverse
 """
 
 from __future__ import annotations
@@ -81,6 +82,9 @@ DEGRADATIONS = [
   ("deg-reverse", deg_reverse),
 ]
 
+# 定義による gold 順位（良い順）。人手ラベル不要。
+GOLD_RANK = ["human", "deg-join", "deg-split", "base", "deg-reverse"]
+
 
 def is_eligible(row: dict, *, max_chars: int, min_paragraphs: int) -> bool:
   src, edt = row["source_text"], row["edited_text"]
@@ -110,19 +114,35 @@ def build_item(idx: int, row: dict) -> dict | None:
   base_text = row["source_text"].strip("\n") + "\n"
   human_text = row["edited_text"].strip("\n") + "\n"
 
-  candidates = [
-    {"id": "human", "text": human_text, "generator": "human", "prompt_tag": "real-edit"},
-    {"id": "base", "text": base_text, "generator": "copy", "prompt_tag": "identity"},
-  ]
+  by_id = {
+    "human": {
+      "id": "human",
+      "text": human_text,
+      "generator": "human",
+      "prompt_tag": "real-edit",
+    },
+    "base": {
+      "id": "base",
+      "text": base_text,
+      "generator": "copy",
+      "prompt_tag": "identity",
+    },
+  }
   seen = {human_text.strip(), base_text.strip()}
   for deg_id, fn in DEGRADATIONS:
     deg_text = fn(human_text)
     if deg_text.strip() in seen:
       return None
     seen.add(deg_text.strip())
-    candidates.append(
-      {"id": deg_id, "text": deg_text, "generator": "script", "prompt_tag": deg_id}
-    )
+    by_id[deg_id] = {
+      "id": deg_id,
+      "text": deg_text,
+      "generator": "script",
+      "prompt_tag": deg_id,
+    }
+
+  # gold 順位どおりに並べる（定義: human > deg-join > deg-split > base > deg-reverse）
+  candidates = [by_id[cid] for cid in GOLD_RANK]
 
   meta = row["meta"]
   return {
@@ -137,12 +157,17 @@ def build_item(idx: int, row: dict) -> dict | None:
       "paragraph_count_source": meta["paragraph_count_source"],
       "paragraph_count_edited": meta["paragraph_count_edited"],
       "note": "held-out real edit; draft section as base",
+      "gold_rank_rule": "human > deg-join > deg-split > base > deg-reverse",
     },
     "base_text": base_text,
     "base_generator": "draft",
     "candidates": candidates,
-    "human": {},
-    "status": "pending",
+    "human": {
+      "best_id": GOLD_RANK[0],
+      "rank": list(GOLD_RANK),
+      "notes": "definitional rank for controlled degradations; no human reorder",
+    },
+    "status": "labeled",
   }
 
 
@@ -150,9 +175,8 @@ def write_preview(items: list[dict], path: Path) -> None:
   lines: list[str] = [
     "# Hard Eval v2 candidates preview",
     "",
-    "各 `## he-v2-XX` 内の `###` サブセクションを**良い順**に並べ替える。",
-    "見出しと本文は一緒に動かし、本文は編集しない。",
-    "並べ替え後: `make hard-eval-label PREVIEW=... SOURCE=... OUTPUT=...`",
+    "順位は定義により固定: `human > deg-join > deg-split > base > deg-reverse`",
+    "（人手並べ替え不要。参照用に gold 順で並べてある）",
     "",
   ]
   for item in items:
@@ -175,8 +199,8 @@ def write_preview(items: list[dict], path: Path) -> None:
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--input", required=True, help="held-out 節ペア JSONL")
-  parser.add_argument("--out", required=True, help="pending JSONL の出力先")
-  parser.add_argument("--preview", required=True, help="並べ替え用 Markdown の出力先")
+  parser.add_argument("--out", required=True, help="labeled JSONL の出力先")
+  parser.add_argument("--preview", required=True, help="参照用 Markdown の出力先")
   parser.add_argument("--n-items", type=int, default=24)
   parser.add_argument("--max-chars", type=int, default=2600)
   parser.add_argument("--min-paragraphs", type=int, default=3)

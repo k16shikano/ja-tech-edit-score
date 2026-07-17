@@ -115,8 +115,10 @@ mine-heldout-sections:
 hard-eval-v2-build:
 	$(PYTHON) scripts/build_hard_eval_v2.py \
 	  --input "$(or $(INPUT),$(ROOT)data/examples.section.heldout.jsonl)" \
-	  --out "$(or $(OUTPUT),$(ROOT)data/hard_eval/bases_v2.jsonl)" \
+	  --out "$(or $(OUTPUT),$(ROOT)data/hard_eval/bases_v2_labeled.jsonl)" \
 	  --preview "$(or $(PREVIEW),$(ROOT)data/hard_eval/bases_v2_candidates_preview.md)"
+	@cp -f "$(or $(OUTPUT),$(ROOT)data/hard_eval/bases_v2_labeled.jsonl)" \
+	  "$(ROOT)data/hard_eval/bases_v2.jsonl"
 
 section-pref-data:
 	bash scripts/build_section_pref_pipeline.sh

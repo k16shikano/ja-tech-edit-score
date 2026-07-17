@@ -162,16 +162,20 @@ v1 の「seed → LLM 言い換え → 多モデル推敲 → 人手推敲」を
 - **base**: 下書き節（実編集の source 側）。LLM 言い換えを挟まない。
 - **候補**（`make hard-eval-v2-build` が生成）:
   - `human` … 編集者の実編集（節全体）
-  - `base` … 下書きのまま（identity）
+  - `base` … 下書きのまま（identity / copy）
   - `deg-join` … human から段落境界を全部除去（一塊化）
   - `deg-split` … human を一文ごとに段落化（過剰分割）
   - `deg-reverse` … human の段落順を逆転
+- **順位は定義で固定**（人手並べ替え不要）:
+  `human > deg-join > deg-split > base > deg-reverse`
 - **改悪の意図**: deg-* は文レベルの質が human と同一なので、
   これらを human より下に置けるかどうかが**構成だけの識別力**の直接測定になる。
   文レベル採点器は deg-join / deg-reverse と human をほぼ区別できないはず。
 
-v1 との違いは素材と候補構成だけで、ラベル付け（preview 並べ替え → `make hard-eval-label`）と
-採点（`make hard-eval-score`）は同じ流れに載る。
+v1 との違い:
+- 素材と候補構成が違う（実編集＋制御改悪）
+- ラベル付けは人手不要（定義順位）
+- 採点（`make hard-eval-score`）は同じ流れ
 
 留意点:
 
