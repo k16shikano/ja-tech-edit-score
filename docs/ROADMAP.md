@@ -217,8 +217,30 @@ ja-tech-edit-score-converge \
 | 空行（段落境界）あり | **0%** | **100%** |
 | 段落数が変化 | 0% | **50.8%** |
 
-次: 節ペアを `pref_dataset` に載せ、CE を再学習して LOPO / 難試験で構成選好が載るか測る。
+次: CE を再学習して LOPO / 難試験で構成選好が載るか測る。
 長い節は `max_length=512` を超えうるため、トークン上限と切り詰め方針も要検討。
+
+節ペアの pref 化（`make section-pref-data`）:
+
+| 段階 | 件数 |
+|------|------|
+| section raw | 484 |
+| DPO（accepted） | 249 |
+| curated（max_chars=4000） | 219 |
+| pref（swap 増強） | 438 |
+| **マージ後 pref_dataset** | **12,548**（hunk 12,110 + section 438） |
+| train / valid / test | 9,984 / 1,302 / 1,262 |
+
+CE 再学習用イメージ: `make build-pref-ce-image` → `pref-ce:local`（6.3GB）。DOK push は `REGISTRY=... ./scripts/build_push_pref_ce_image.sh`。
+
+**再学習と採用（2026-07-17）**: DOK `MODE=train` で節ペア込み CE を学習（in-domain valid pair accuracy 0.992）。
+Hard Eval v1 では旧 CE と実質同等（Top-1 0.45 vs 0.50、ペア一致 0.840 vs 0.837）。
+v1 は文レベルの推敲しか測っておらず、段落構成の識別力は試験に含まれていない。
+文レベルで同等なら、構成レベルの信号を学習に含む新モデルが期待値で優位（旧 CE は段落境界を一度も見ていない）なので、**節ペア込み CE を本線に採用**した。
+
+- 配置: `outputs/pref-ce-beyond-para/`（実体）、`outputs/pref-ce` はそこへの symlink
+- 旧 CE は `outputs/pref-ce-hunk-only/` に退避（比較用）
+- 構成識別力の実測は難試験 v2（節単位、3e）で行う
 
 ## 生成モデルへの埋め込み（系統1 / 系統3）
 
@@ -268,7 +290,7 @@ kNN 実例注入（系統4）は過去に失敗しており、採用しない。
 | 3c | 選抜難試験（LLM ベース＋人手） | 3a | CPU＋人手 | v1 実施済み（20項目）。拡充は継続（[HARD-EVAL.md](HARD-EVAL.md)） |
 | 3d | CE の運用組み込み（rank / converge） | 3b | CPU | 済み（meta.json で BT/CE 自動判別。rank の既定は pref-ce） |
 | 3e | 難試験 v2: 節（複数段落）単位の項目 | 3c | CPU＋人手 | 未着手。試験設計は [HARD-EVAL.md](HARD-EVAL.md) |
-| 3f | 節単位ペアの再採掘と CE 再学習 | 3b | CPU＋GPU | 採掘済み 484 件。pref 化・再学習はこれから |
+| 3f | 節単位ペアの再採掘と CE 再学習 | 3b | CPU＋GPU | **済み・採用**。節ペア込み CE（`pref-ce-beyond-para`）を本線に。構成識別力の実測は 3e（難試験 v2）へ |
 | 4 | Best-of-N と収束判定のループ実装 | 3a | CPU | 済み |
 | 5 | 要推敲検出器の採掘拡張 | 1 | CPU | 未着手 |
 | 6a | activation steering 読み取り（フェーズ A） | データ | GPU（短） | 計測済み（弱め）・B/C 見送り |

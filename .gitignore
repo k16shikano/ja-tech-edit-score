@@ -9,11 +9,17 @@ run/
 data/examples.raw.jsonl
 data/examples.section.raw.jsonl
 data/examples.db
+data/examples.section.db
 data/dpo_dataset.jsonl
 data/dpo_curated.jsonl
+data/dpo_section.jsonl
+data/dpo_section_curated.jsonl
 data/pref_dataset.jsonl
+data/pref_dataset.hunk.jsonl
+data/pref_dataset_section.jsonl
 data/pref_split/
 data/curate_report.json
+data/curate_section_report.json
 data/revision_pairs.jsonl
 data/edit_sft/
 data/hard_eval/

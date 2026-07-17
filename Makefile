@@ -36,7 +36,7 @@ STEERING_MAX_LENGTH ?= 2048
 CE_OUTPUT_DIR := $(ROOT)outputs/pref-ce
 CE_BASE_MODEL ?= sbintuitions/modernbert-ja-130m
 
-.PHONY: help venv data mine-sections train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score
+.PHONY: help venv data mine-sections section-pref-data train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score build-pref-ce-image
 
 help:
 	@echo "Targets:"
@@ -45,6 +45,8 @@ help:
 	@echo "  make install-skills # symlink skills/* to ~/.cursor/skills"
 	@echo "  make data DIR=<repo> ORG=<base-branch> EDT=<edit-branch> [PROJECT_ID=...] [PATH=...]"
 	@echo "  make mine-sections  # 節単位ペア再採掘 → data/examples.section.raw.jsonl"
+	@echo "  make section-pref-data  # 節ペアを pref に載せ hunk とマージ → pref_split 更新"
+	@echo "  make build-pref-ce-image  # CE 再学習用 Docker イメージをローカル build"
 	@echo "  make train         # pref-static（既定: ruri-v3-30m）"
 	@echo "  make train-bt      # Bradley-Terry 報酬モデル（絶対スコア）"
 	@echo "  make eval-xproject # leave-one-project-out（ペア分類）"
@@ -106,6 +108,12 @@ data:
 
 mine-sections:
 	bash scripts/batch_mine_sections.sh
+
+section-pref-data:
+	bash scripts/build_section_pref_pipeline.sh
+
+build-pref-ce-image:
+	bash scripts/build_pref_ce_image.sh
 
 train: $(RAW)
 	@test -s "$(RAW)" || (echo "no training data: run make data first" && exit 1)

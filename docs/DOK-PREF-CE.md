@@ -6,12 +6,21 @@
 
 ## 前提
 
-- `data/pref_dataset.jsonl` と `data/pref_split/` が手元にある（`make train` のデータ生成部）
+- `data/pref_dataset.jsonl` と `data/pref_split/` が手元にある
+  - hunk のみ: `make train` のデータ生成部
+  - **節ペア込み**: `make section-pref-data`（hunk を `pref_dataset.hunk.jsonl` に退避してマージ）
 - さくら高火力 DOK と非公開レジストリ（原稿由来データをイメージに同梱するため公開レジストリ不可）
 
 ## 手順1: build & push
 
 ```bash
+# 節ペア込みデータを作る（初回または再採掘後）
+make section-pref-data
+
+# ローカル検証
+make build-pref-ce-image          # → pref-ce:local
+
+# DOK 用 push
 export REGISTRY=（名前）.sakuracr.jp
 ./scripts/build_push_pref_ce_image.sh
 ```
@@ -66,7 +75,9 @@ make train-ce                                    # 1 本学習 → outputs/pref-
 | `scripts/pref_ce_runtime.py` | 読み込み・採点（採用時に rank から使う） |
 | `scripts/dok_pref_ce.sh` | DOK 起動処理 |
 | `Dockerfile.pref-ce` | 箱 |
-| `scripts/build_push_pref_ce_image.sh` | build & push |
+| `scripts/build_section_pref_pipeline.sh` | 節ペア → pref 化 → hunk とマージ → split |
+| `scripts/build_pref_ce_image.sh` | ローカル build または REGISTRY 指定で push |
+| `scripts/build_push_pref_ce_image.sh` | `build_pref_ce_image.sh` へのエントリ（後方互換） |
 
 ## うまくいかないとき
 
