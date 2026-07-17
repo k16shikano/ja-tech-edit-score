@@ -165,7 +165,7 @@ def write_preview(items: list[dict], path: Path) -> None:
     )
     lines.append("")
     for cand in item["candidates"]:
-      lines.append(f"### `{cand['id']}` ({cand.get('generator', '?')})")
+      lines.append(f"### Candidate: `{cand['id']}` ({cand.get('generator', '?')})")
       lines.append("")
       lines.append(cand["text"].strip())
       lines.append("")

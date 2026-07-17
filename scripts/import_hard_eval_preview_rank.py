@@ -10,7 +10,9 @@ from pathlib import Path
 
 
 ITEM_HEADING = re.compile(r"^## (he-[^\s]+)\s*$")
-CANDIDATE_HEADING = re.compile(r"^### `([^`]+)` \([^)]+\)\s*$")
+CANDIDATE_HEADING = re.compile(
+  r"^### (?:Candidate: )?`([^`]+)` \([^)]+\)\s*$"
+)
 
 
 def load_jsonl(path: Path) -> list[dict]:
