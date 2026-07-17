@@ -2,19 +2,23 @@
 """難試験 v2（節単位・構成軸）の項目を held-out 節ペアから生成する。
 
 方針（ハイブリッド C）:
-  - base_text  = 下書き節（実編集の source 側）
-  - human 候補 = 編集者の実編集
+  - base_text  = 下書き節（またはその段落ウィンドウ）
+  - human 候補 = 編集者の実編集（同ウィンドウ）
   - base 候補  = 下書きのまま（identity / copy）
-  - deg-* 候補 = 実編集テキストに制御された構成改悪を加えたもの。
-                 文レベルの質は gold と同一なので、構成の識別力だけを試す。
+  - deg-* 候補 = human に制御された構成改悪を加えたもの
 
 改悪の種類:
   deg-join    段落境界（空行）を全部落とし、一塊にする
   deg-split   一文ごとに段落化し、過剰分割する
-  deg-reverse 本文段落の順序を逆転する（トピックの流れを壊す）
+  deg-reverse 本文段落の順序を逆転する
 
 順位は定義により固定（人手並べ替え不要）:
   human > deg-join > deg-split > base > deg-reverse
+
+CE の max_length=512 に収まるよう、全候補について
+tokenizer で (base_text, candidate) のトークン長を実測し、
+溢れる項目は落とす。節全体が長い場合は、段落数が一致する
+節から連続 N 段落のウィンドウを切り出す。
 """
 
 from __future__ import annotations
@@ -26,6 +30,10 @@ from collections import defaultdict
 from pathlib import Path
 
 HEADING_RE = re.compile(r"^#{1,6}\s")
+MARKERS = ("```", "~~~", "|--", "af://", "★", "<!--", "TODO", "FIXME")
+
+DEGRADATIONS = []  # filled after deg_* defs
+GOLD_RANK = ["human", "deg-join", "deg-split", "base", "deg-reverse"]
 
 
 def load_rows(path: Path) -> list[dict]:
@@ -37,7 +45,6 @@ def load_rows(path: Path) -> list[dict]:
 
 
 def split_heading_body(text: str) -> tuple[str, str]:
-  """節テキストを（見出し行, 本文）に分ける。見出しが無ければ空文字。"""
   lines = text.splitlines()
   if lines and HEADING_RE.match(lines[0]):
     return lines[0], "\n".join(lines[1:]).strip("\n")
@@ -45,7 +52,9 @@ def split_heading_body(text: str) -> tuple[str, str]:
 
 
 def paragraphs(body: str) -> list[str]:
-  return [p.strip("\n") for p in re.split(r"\n\s*\n", body) if p.strip()]
+  # markdown_sections.paragraph_count と同じ分割（\n\n）。
+  # \s* を含む正規表現は空マッチで文字単位に割れる危険があるので使わない。
+  return [p.strip("\n") for p in body.split("\n\n") if p.strip()]
 
 
 def join_with_heading(heading: str, body: str) -> str:
@@ -55,25 +64,19 @@ def join_with_heading(heading: str, body: str) -> str:
 
 
 def deg_join(text: str) -> str:
-  """段落境界を消して一塊にする。"""
   heading, body = split_heading_body(text)
-  paras = paragraphs(body)
-  merged = "\n".join(p for p in paras)
-  return join_with_heading(heading, merged)
+  return join_with_heading(heading, "\n".join(paragraphs(body)))
 
 
 def deg_split(text: str) -> str:
-  """一文（一行）ごとに段落化する。"""
   heading, body = split_heading_body(text)
   lines = [line for line in body.splitlines() if line.strip()]
   return join_with_heading(heading, "\n\n".join(lines))
 
 
 def deg_reverse(text: str) -> str:
-  """本文段落の順序を逆転する。"""
   heading, body = split_heading_body(text)
-  paras = paragraphs(body)
-  return join_with_heading(heading, "\n\n".join(reversed(paras)))
+  return join_with_heading(heading, "\n\n".join(reversed(paragraphs(body))))
 
 
 DEGRADATIONS = [
@@ -82,38 +85,16 @@ DEGRADATIONS = [
   ("deg-reverse", deg_reverse),
 ]
 
-# 定義による gold 順位（良い順）。人手ラベル不要。
-GOLD_RANK = ["human", "deg-join", "deg-split", "base", "deg-reverse"]
+
+def has_markers(text: str) -> bool:
+  return any(m in text for m in MARKERS)
 
 
-def is_eligible(row: dict, *, max_chars: int, min_paragraphs: int) -> bool:
-  src, edt = row["source_text"], row["edited_text"]
-  meta = row["meta"]
-  if len(src) > max_chars or len(edt) > max_chars:
-    return False
-  if meta["paragraph_count_source"] < min_paragraphs:
-    return False
-  if meta["paragraph_count_edited"] < min_paragraphs:
-    return False
-  # 作業メモやコードブロックが残る節は除外する。
-  # base 側にメモがあると「メモを消した」だけで human を識別でき、構成の試験にならない。
-  for marker in ("```", "~~~", "|--", "af://", "★", "<!--", "TODO", "FIXME"):
-    if marker in src or marker in edt:
-      return False
-  return True
+def make_window(heading: str, paras: list[str], start: int, n: int) -> str:
+  return join_with_heading(heading, "\n\n".join(paras[start : start + n]))
 
 
-def selection_key(row: dict) -> tuple:
-  """段落数変化が大きいものを優先し、次に短いものを優先する。"""
-  meta = row["meta"]
-  para_delta = abs(meta["paragraph_count_edited"] - meta["paragraph_count_source"])
-  return (-para_delta, len(row["source_text"]))
-
-
-def build_item(idx: int, row: dict) -> dict | None:
-  base_text = row["source_text"].strip("\n") + "\n"
-  human_text = row["edited_text"].strip("\n") + "\n"
-
+def candidate_map(base_text: str, human_text: str) -> dict[str, dict] | None:
   by_id = {
     "human": {
       "id": "human",
@@ -140,11 +121,45 @@ def build_item(idx: int, row: dict) -> dict | None:
       "generator": "script",
       "prompt_tag": deg_id,
     }
+  return by_id
 
-  # gold 順位どおりに並べる（定義: human > deg-join > deg-split > base > deg-reverse）
+
+def fits_tokens(
+  tokenizer,
+  base_text: str,
+  by_id: dict[str, dict],
+  *,
+  max_tokens: int,
+) -> bool:
+  for cand in by_id.values():
+    n = len(
+      tokenizer(
+        base_text,
+        cand["text"],
+        truncation=False,
+        add_special_tokens=True,
+      )["input_ids"]
+    )
+    if n > max_tokens:
+      return False
+  return True
+
+
+def build_item_from_texts(
+  *,
+  idx: int,
+  row: dict,
+  base_text: str,
+  human_text: str,
+  window_meta: dict,
+) -> dict | None:
+  by_id = candidate_map(base_text, human_text)
+  if by_id is None:
+    return None
   candidates = [by_id[cid] for cid in GOLD_RANK]
-
   meta = row["meta"]
+  hs, _ = split_heading_body(human_text)
+  bs, _ = split_heading_body(base_text)
   return {
     "id": f"he-v2-{idx:02d}",
     "seed_text": "",
@@ -154,10 +169,13 @@ def build_item(idx: int, row: dict) -> dict | None:
       "section_key": meta["section_key"],
       "merged_branch": meta.get("merged_branch", ""),
       "source_reference": row["source_reference"],
-      "paragraph_count_source": meta["paragraph_count_source"],
-      "paragraph_count_edited": meta["paragraph_count_edited"],
-      "note": "held-out real edit; draft section as base",
+      "paragraph_count_source": len(paragraphs(split_heading_body(base_text)[1])),
+      "paragraph_count_edited": len(paragraphs(split_heading_body(human_text)[1])),
+      "section_paragraph_count_source": meta["paragraph_count_source"],
+      "section_paragraph_count_edited": meta["paragraph_count_edited"],
+      "note": "held-out real edit; token-budgeted window or section",
       "gold_rank_rule": "human > deg-join > deg-split > base > deg-reverse",
+      **window_meta,
     },
     "base_text": base_text,
     "base_generator": "draft",
@@ -171,21 +189,84 @@ def build_item(idx: int, row: dict) -> dict | None:
   }
 
 
+def expand_candidates(
+  row: dict,
+  *,
+  window_paragraphs: int,
+) -> list[tuple[str, str, dict]]:
+  """(base_text, human_text, window_meta) の候補を列挙。"""
+  src = row["source_text"].strip("\n") + "\n"
+  edt = row["edited_text"].strip("\n") + "\n"
+  if has_markers(src) or has_markers(edt):
+    return []
+
+  out: list[tuple[str, str, dict]] = []
+  out.append(
+    (
+      src,
+      edt,
+      {
+        "unit": "section",
+        "window_start": 0,
+        "window_paragraphs": row["meta"]["paragraph_count_edited"],
+      },
+    )
+  )
+
+  hs, src_body = split_heading_body(src)
+  he, edt_body = split_heading_body(edt)
+  sp = paragraphs(src_body)
+  ep = paragraphs(edt_body)
+  # 文字単位に割けた場合のガード（平均段落長が極端に短い）
+  if not sp or not ep:
+    return out
+  if sum(len(p) for p in sp) / len(sp) < 20 or sum(len(p) for p in ep) / len(ep) < 20:
+    return out
+  max_start = min(len(sp), len(ep)) - window_paragraphs
+  if max_start >= 0:
+    for start in range(0, max_start + 1):
+      out.append(
+        (
+          make_window(hs, sp, start, window_paragraphs),
+          make_window(he, ep, start, window_paragraphs),
+          {
+            "unit": "window",
+            "window_start": start,
+            "window_paragraphs": window_paragraphs,
+            "aligned_equal_count": len(sp) == len(ep),
+          },
+        )
+      )
+  return out
+
+
+def selection_key(item: dict) -> tuple:
+  meta = item["seed_meta"]
+  # 段落数が変わる節由来を優先。ウィンドウより節全体を優先。
+  section_delta = abs(
+    meta["section_paragraph_count_edited"] - meta["section_paragraph_count_source"]
+  )
+  unit_rank = 0 if meta.get("unit") == "section" else 1
+  return (-section_delta, unit_rank, len(item["base_text"]))
+
+
 def write_preview(items: list[dict], path: Path) -> None:
   lines: list[str] = [
     "# Hard Eval v2 candidates preview",
     "",
     "順位は定義により固定: `human > deg-join > deg-split > base > deg-reverse`",
-    "（人手並べ替え不要。参照用に gold 順で並べてある）",
+    "全候補は CE `max_length` に収まるようトークン実測で選抜済み。",
     "",
   ]
   for item in items:
     seed_meta = item["seed_meta"]
+    unit = seed_meta.get("unit", "section")
     lines.append(f"## {item['id']}")
     lines.append("")
     lines.append(
       f"（{seed_meta['project_id']} / {seed_meta['section_key']} / "
-      f"段落 {seed_meta['paragraph_count_source']}→{seed_meta['paragraph_count_edited']}）"
+      f"{unit} 段落 {seed_meta['paragraph_count_source']}→"
+      f"{seed_meta['paragraph_count_edited']}）"
     )
     lines.append("")
     for cand in item["candidates"]:
@@ -202,56 +283,129 @@ def main() -> None:
   parser.add_argument("--out", required=True, help="labeled JSONL の出力先")
   parser.add_argument("--preview", required=True, help="参照用 Markdown の出力先")
   parser.add_argument("--n-items", type=int, default=24)
-  parser.add_argument("--max-chars", type=int, default=2600)
   parser.add_argument("--min-paragraphs", type=int, default=3)
+  parser.add_argument("--window-paragraphs", type=int, default=3)
   parser.add_argument("--max-per-project", type=int, default=8)
+  parser.add_argument(
+    "--max-tokens",
+    type=int,
+    default=512,
+    help="(base, candidate) の最大トークン長（CE max_length に合わせる）",
+  )
+  parser.add_argument(
+    "--tokenizer",
+    default="outputs/pref-ce-beyond-para/model",
+    help="トークン長実測用の tokenizer ディレクトリまたは HF id",
+  )
   args = parser.parse_args()
 
-  rows = load_rows(Path(args.input))
-  eligible = [
-    r for r in rows
-    if is_eligible(r, max_chars=args.max_chars, min_paragraphs=args.min_paragraphs)
-  ]
+  from transformers import AutoTokenizer
 
-  # 同一節が複数ブランチから重複採掘されるので、段落変化が最大のものだけ残す
+  tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
+
+  rows = load_rows(Path(args.input))
+  # 同一節の重複は段落変化が大きいものを残す
   by_section: dict[tuple, dict] = {}
-  for row in eligible:
+  for row in rows:
+    if has_markers(row["source_text"]) or has_markers(row["edited_text"]):
+      continue
+    if row["meta"]["paragraph_count_edited"] < args.min_paragraphs:
+      continue
+    if row["meta"]["paragraph_count_source"] < args.min_paragraphs:
+      continue
     key = (row["project_id"], row["meta"]["path"], row["meta"]["section_key"])
     prev = by_section.get(key)
-    if prev is None or selection_key(row) < selection_key(prev):
+    if prev is None:
+      by_section[key] = row
+      continue
+    prev_delta = abs(
+      prev["meta"]["paragraph_count_edited"] - prev["meta"]["paragraph_count_source"]
+    )
+    cur_delta = abs(
+      row["meta"]["paragraph_count_edited"] - row["meta"]["paragraph_count_source"]
+    )
+    if cur_delta > prev_delta or (
+      cur_delta == prev_delta and len(row["edited_text"]) < len(prev["edited_text"])
+    ):
       by_section[key] = row
 
-  ranked = sorted(by_section.values(), key=selection_key)
+  pool: list[dict] = []
+  n_overflow = 0
+  for row in by_section.values():
+    for base_text, human_text, window_meta in expand_candidates(
+      row, window_paragraphs=args.window_paragraphs
+    ):
+      if len(paragraphs(split_heading_body(human_text)[1])) < args.min_paragraphs:
+        continue
+      by_id = candidate_map(base_text, human_text)
+      if by_id is None:
+        continue
+      if not fits_tokens(tokenizer, base_text, by_id, max_tokens=args.max_tokens):
+        n_overflow += 1
+        continue
+      item = build_item_from_texts(
+        idx=0,
+        row=row,
+        base_text=base_text,
+        human_text=human_text,
+        window_meta=window_meta,
+      )
+      if item is not None:
+        pool.append(item)
+
+  ranked = sorted(pool, key=selection_key)
   picked: list[dict] = []
   per_project: dict[str, int] = defaultdict(int)
-  for row in ranked:
+  seen_windows: set[tuple] = set()
+  for item in ranked:
     if len(picked) >= args.n_items:
       break
-    if per_project[row["project_id"]] >= args.max_per_project:
+    pid = item["seed_meta"]["project_id"]
+    if per_project[pid] >= args.max_per_project:
       continue
-    picked.append(row)
-    per_project[row["project_id"]] += 1
-
-  items: list[dict] = []
-  for idx, row in enumerate(picked, start=1):
-    item = build_item(idx, row)
-    if item is not None:
-      items.append(item)
+    # 同一節から複数ウィンドウを取りすぎない（開始位置の重複抑制）
+    wkey = (
+      pid,
+      item["seed_meta"]["section_key"],
+      item["seed_meta"].get("window_start"),
+      item["seed_meta"].get("window_paragraphs"),
+    )
+    if wkey in seen_windows:
+      continue
+    # 同じ節の隣接ウィンドウは開始位置が近すぎるとほぼ同じなので stride 風に間引く
+    too_close = False
+    for prev in picked:
+      if (
+        prev["seed_meta"]["project_id"] == pid
+        and prev["seed_meta"]["section_key"] == item["seed_meta"]["section_key"]
+        and prev["seed_meta"].get("unit") == "window"
+        and item["seed_meta"].get("unit") == "window"
+        and abs(
+          prev["seed_meta"]["window_start"] - item["seed_meta"]["window_start"]
+        )
+        < args.window_paragraphs
+      ):
+        too_close = True
+        break
+    if too_close:
+      continue
+    seen_windows.add(wkey)
+    item["id"] = f"he-v2-{len(picked) + 1:02d}"
+    picked.append(item)
+    per_project[pid] += 1
 
   out_path = Path(args.out)
   out_path.parent.mkdir(parents=True, exist_ok=True)
   with out_path.open("w", encoding="utf-8") as f:
-    for item in items:
+    for item in picked:
       f.write(json.dumps(item, ensure_ascii=False) + "\n")
-  write_preview(items, Path(args.preview))
+  write_preview(picked, Path(args.preview))
 
-  n_changed = sum(
-    1 for it in items
-    if it["seed_meta"]["paragraph_count_source"] != it["seed_meta"]["paragraph_count_edited"]
-  )
-  print(f"eligible sections: {len(eligible)} (dedup: {len(by_section)})")
-  print(f"items: {len(items)} (paragraph-count changed: {n_changed})")
+  n_section = sum(1 for it in picked if it["seed_meta"].get("unit") == "section")
+  print(f"pool after token filter: {len(pool)} (overflow skipped: {n_overflow})")
+  print(f"items: {len(picked)} (whole sections: {n_section}, windows: {len(picked) - n_section})")
   print("per project:", dict(per_project))
+  print(f"max_tokens: {args.max_tokens}")
   print(f"wrote {out_path}")
   print(f"wrote {args.preview}")
 
