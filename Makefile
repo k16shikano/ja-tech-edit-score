@@ -36,7 +36,7 @@ STEERING_MAX_LENGTH ?= 2048
 CE_OUTPUT_DIR := $(ROOT)outputs/pref-ce
 CE_BASE_MODEL ?= sbintuitions/modernbert-ja-130m
 
-.PHONY: help venv data train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score
+.PHONY: help venv data mine-sections train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score
 
 help:
 	@echo "Targets:"
@@ -44,6 +44,7 @@ help:
 	@echo "  make install-bin   # symlink bin/* to ~/.local/bin"
 	@echo "  make install-skills # symlink skills/* to ~/.cursor/skills"
 	@echo "  make data DIR=<repo> ORG=<base-branch> EDT=<edit-branch> [PROJECT_ID=...] [PATH=...]"
+	@echo "  make mine-sections  # 節単位ペア再採掘 → data/examples.section.raw.jsonl"
 	@echo "  make train         # pref-static（既定: ruri-v3-30m）"
 	@echo "  make train-bt      # Bradley-Terry 報酬モデル（絶対スコア）"
 	@echo "  make eval-xproject # leave-one-project-out（ペア分類）"
@@ -102,6 +103,9 @@ data:
 	  $(if $(PROJECT_ID),--project-id "$(PROJECT_ID)",) \
 	  $(if $(PATH),--path "$(PATH)",) \
 	  --append "$(RAW)"
+
+mine-sections:
+	bash scripts/batch_mine_sections.sh
 
 train: $(RAW)
 	@test -s "$(RAW)" || (echo "no training data: run make data first" && exit 1)

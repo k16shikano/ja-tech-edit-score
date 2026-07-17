@@ -1,0 +1,576 @@
+[
+  {
+    "project_id": "compute-programming",
+    "repo": "/home/k16/work/Nspecial/compute-programming",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/sec0"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec1"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec2"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec3"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec4"
+      }
+    ],
+    "paths": [
+      "article/article.md"
+    ]
+  },
+  {
+    "project_id": "compute-society",
+    "repo": "/home/k16/work/Nspecial/compute-society",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/issue6"
+      },
+      {
+        "base": "main",
+        "edit": "edit/llm"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec1"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec2"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec3"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec4"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec5-into-sec3"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec6"
+      },
+      {
+        "base": "main",
+        "edit": "edit/upto-paradigm"
+      },
+      {
+        "base": "main",
+        "edit": "edit/worldcom"
+      }
+    ],
+    "paths": [
+      "article/article.md"
+    ]
+  },
+  {
+    "project_id": "compute-typetheory",
+    "repo": "/home/k16/work/Nspecial/compute-typetheory",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/code"
+      },
+      {
+        "base": "main",
+        "edit": "edit/finale"
+      },
+      {
+        "base": "main",
+        "edit": "edit/lead"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec1"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec2"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec3"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec4"
+      },
+      {
+        "base": "main",
+        "edit": "edit/setup"
+      },
+      {
+        "base": "main",
+        "edit": "edit/truncation"
+      }
+    ],
+    "paths": [
+      "article/article.lagda.md"
+    ]
+  },
+  {
+    "project_id": "compute-unconventional",
+    "repo": "/home/k16/work/Nspecial/compute-unconventional",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/markdown-and-style"
+      },
+      {
+        "base": "main",
+        "edit": "edit/re"
+      },
+      {
+        "base": "main",
+        "edit": "edit/reversible-logic-gate"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec1"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec2"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec3"
+      }
+    ],
+    "paths": [
+      "article/article.md"
+    ]
+  },
+  {
+    "project_id": "compute-whatis",
+    "repo": "/home/k16/work/Nspecial/compute-whatis",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/finale"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sannai"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec1"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec2"
+      }
+    ],
+    "paths": [
+      "article/article.md"
+    ]
+  },
+  {
+    "project_id": "computer-arch-revisit",
+    "repo": "/home/k16/work/Nmonthly/computer-arch-revisit",
+    "branch_pairs": [
+      {
+        "base": "master",
+        "edit": "edit/sec1-sec2"
+      },
+      {
+        "base": "master",
+        "edit": "edit/sec3"
+      },
+      {
+        "base": "master",
+        "edit": "edit/sec4"
+      },
+      {
+        "base": "master",
+        "edit": "edit/sec5"
+      },
+      {
+        "base": "master",
+        "edit": "edit/sec6-"
+      }
+    ],
+    "paths": [
+      "turing-machiine/article.md"
+    ]
+  },
+  {
+    "project_id": "cs-for-ai-ages",
+    "repo": "/home/k16/work/cs-for-ai-ages",
+    "branch_pairs": [
+      {
+        "base": "generated",
+        "edit": "edited"
+      }
+    ],
+    "paths": [
+      "chap01.md",
+      "chap02.md",
+      "chap03.md",
+      "chap04.md",
+      "chap05.md",
+      "chap06.md",
+      "chap07.md",
+      "chap08.md",
+      "chap09.md"
+    ]
+  },
+  {
+    "project_id": "eff",
+    "repo": "/home/k16/work/Nmonthly/eff",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/sec1"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec3"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec4"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec5"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec5-re"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec7"
+      },
+      {
+        "base": "main",
+        "edit": "edit/temp"
+      },
+      {
+        "base": "main",
+        "edit": "edit/what-to-do"
+      }
+    ],
+    "paths": [
+      "article/article.md"
+    ]
+  },
+  {
+    "project_id": "ir-system",
+    "repo": "/home/k16/work/ir-system",
+    "branch_pairs": [
+      {
+        "base": "vector-search",
+        "edit": "edit/vector-search"
+      }
+    ],
+    "paths": [
+      "src/vector-search.md"
+    ]
+  },
+  {
+    "project_id": "lean-from-zero",
+    "repo": "/home/k16/work/lean-from-zero",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/about-style"
+      },
+      {
+        "base": "main",
+        "edit": "edit/dagger"
+      },
+      {
+        "base": "main",
+        "edit": "edit/dependent-type"
+      },
+      {
+        "base": "main",
+        "edit": "edit/distrib"
+      },
+      {
+        "base": "main",
+        "edit": "edit/firstprove"
+      },
+      {
+        "base": "main",
+        "edit": "edit/goal"
+      },
+      {
+        "base": "main",
+        "edit": "edit/grind"
+      },
+      {
+        "base": "main",
+        "edit": "edit/induction"
+      },
+      {
+        "base": "main",
+        "edit": "edit/intro"
+      },
+      {
+        "base": "main",
+        "edit": "edit/logic"
+      },
+      {
+        "base": "main",
+        "edit": "edit/mathlib"
+      },
+      {
+        "base": "main",
+        "edit": "edit/misc"
+      },
+      {
+        "base": "main",
+        "edit": "edit/nat-decidablele"
+      },
+      {
+        "base": "main",
+        "edit": "edit/order"
+      },
+      {
+        "base": "main",
+        "edit": "edit/proofpuzzle"
+      },
+      {
+        "base": "main",
+        "edit": "edit/quotient"
+      },
+      {
+        "base": "main",
+        "edit": "edit/section-local"
+      },
+      {
+        "base": "main",
+        "edit": "edit/simponly"
+      },
+      {
+        "base": "main",
+        "edit": "edit/unicode"
+      },
+      {
+        "base": "main",
+        "edit": "edit/unicode-input"
+      }
+    ],
+    "paths": [
+      "README.md",
+      "md/SUMMARY.md",
+      "publish/profile.md"
+    ]
+  },
+  {
+    "project_id": "physical-debug",
+    "repo": "/home/k16/work/physical-debug",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/app"
+      },
+      {
+        "base": "main",
+        "edit": "edit/assessment"
+      },
+      {
+        "base": "main",
+        "edit": "edit/ch5"
+      },
+      {
+        "base": "main",
+        "edit": "edit/ch6"
+      },
+      {
+        "base": "main",
+        "edit": "edit/computer"
+      },
+      {
+        "base": "main",
+        "edit": "edit/intro"
+      },
+      {
+        "base": "main",
+        "edit": "edit/training"
+      }
+    ],
+    "paths": [
+      "src/assessment.md",
+      "src/computer.md",
+      "src/intro.md",
+      "src/learn.md",
+      "src/lets-try.md",
+      "src/lowbackpain.md",
+      "src/movement.md",
+      "src/shoulder.md",
+      "src/sleep.md",
+      "src/training.md"
+    ]
+  },
+  {
+    "project_id": "raft-practical",
+    "repo": "/home/k16/work/Nmonthly/raft-practical",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/21"
+      },
+      {
+        "base": "main",
+        "edit": "edit/address-todo"
+      },
+      {
+        "base": "main",
+        "edit": "edit/kvs"
+      }
+    ],
+    "paths": [
+      "1st/article.md",
+      "1st/main.md"
+    ]
+  },
+  {
+    "project_id": "ts-tapl",
+    "repo": "/home/k16/work/Nmonthly/ts-tapl",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/arg-instead-of-x"
+      },
+      {
+        "base": "main",
+        "edit": "edit/conveient-function"
+      },
+      {
+        "base": "main",
+        "edit": "edit/exercise"
+      },
+      {
+        "base": "main",
+        "edit": "edit/extensions"
+      },
+      {
+        "base": "main",
+        "edit": "edit/howtoread"
+      },
+      {
+        "base": "main",
+        "edit": "edit/howtouseparser"
+      },
+      {
+        "base": "main",
+        "edit": "edit/kmizu-notes"
+      },
+      {
+        "base": "main",
+        "edit": "edit/newTyEnv"
+      },
+      {
+        "base": "main",
+        "edit": "edit/objtype"
+      },
+      {
+        "base": "main",
+        "edit": "edit/poly"
+      },
+      {
+        "base": "main",
+        "edit": "edit/preface"
+      },
+      {
+        "base": "main",
+        "edit": "edit/recfunc"
+      },
+      {
+        "base": "main",
+        "edit": "edit/recur"
+      },
+      {
+        "base": "main",
+        "edit": "edit/restructure"
+      },
+      {
+        "base": "main",
+        "edit": "edit/scope-shadowing"
+      },
+      {
+        "base": "main",
+        "edit": "edit/subtyping"
+      },
+      {
+        "base": "main",
+        "edit": "edit/variable-capture"
+      }
+    ],
+    "paths": [
+      "0-preface.md",
+      "1-intro.md",
+      "10-end.md",
+      "2-arith.md",
+      "3-basic.md",
+      "4-basic2.md",
+      "5-obj.md",
+      "6-recfunc.md",
+      "7-sub.md",
+      "8-rec.md",
+      "9-poly.md",
+      "README.md",
+      "profile.md"
+    ]
+  },
+  {
+    "project_id": "what-is-monad",
+    "repo": "/home/k16/work/Nmonthly/what-is-monad",
+    "branch_pairs": [
+      {
+        "base": "main",
+        "edit": "edit/lead"
+      },
+      {
+        "base": "main",
+        "edit": "edit/monad-synthesise"
+      },
+      {
+        "base": "main",
+        "edit": "edit/on-category"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec1"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec2"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec3"
+      },
+      {
+        "base": "main",
+        "edit": "edit/sec4"
+      },
+      {
+        "base": "main",
+        "edit": "edit/select-branch"
+      }
+    ],
+    "paths": [
+      "article/article.md"
+    ]
+  }
+]

@@ -7,6 +7,7 @@ run/
 
 # Local training artifacts (not published)
 data/examples.raw.jsonl
+data/examples.section.raw.jsonl
 data/examples.db
 data/dpo_dataset.jsonl
 data/dpo_curated.jsonl

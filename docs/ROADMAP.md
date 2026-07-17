@@ -187,12 +187,38 @@ ja-tech-edit-score-converge \
 
 ## 要推敲検出器（採掘の拡張）
 
-現在の採掘は diff の変更 hunk だけを見ている。
+現在の hunk 採掘（`mine_branch_pair.py`）には構成情報が落ちる問題がある（下記「節単位採掘」参照）。
 推敲ブランチで変更されなかった段落は「推敲不要と判定された文章」の正例であり、無償の学習データになる。
 これを使えば「この段落は推敲が必要か」の二値分類器が作れる。
 
 [WORKFLOW.md](WORKFLOW.md) では問題箇所の機械的検出を「行わないこと」としているが、この検出器はループの入口（どの段落を直すか）を自動化する。
-採掘スクリプト（`mine_branch_pair.py`）の小さな拡張で実現できる。
+
+## 節単位採掘（構成レベルの教師データ）
+
+**問題（2026-07-17 判明）**: 既存の `examples.raw.jsonl`（6,055 キュレーション後ペア）は、
+`mine_branch_pair.py` が `--unified=0` の hunk だけを取り、`clean_lines` で空行を除去するため、
+**段落境界を含むペアが 0 件**。節・章レベルで推敲していても、学習データは文レベルの表層差分に潰されている。
+パラグラフライティング（段落分割・統合・接続）の選好はモデルが一度も見ていない。
+
+**対処（実装済み）**:
+
+| 脚本 | 役割 |
+|------|------|
+| `scripts/markdown_sections.py` | Markdown を見出しパンくず単位に分割 |
+| `scripts/mine_section_pairs.py` | base..edit の同見出し節をペア化（空行保持） |
+| `scripts/batch_mine_sections.sh` | `data/section_mining_manifest.json` に基づく一括再採掘 |
+| `scripts/analyze_section_pairs.py` | 段落境界・段落数変化の統計 |
+
+再採掘（14 プロジェクト、`/home/k16/work/Nmonthly` / `Nspecial` 等）の初回結果:
+
+| 指標 | hunk (`examples.raw.jsonl`) | 節 (`examples.section.raw.jsonl`) |
+|------|----------------------------|-----------------------------------|
+| ペア数 | 19,532 raw / 6,055 curated | **484**（現行ブランチ差分が残る分のみ） |
+| 空行（段落境界）あり | **0%** | **100%** |
+| 段落数が変化 | 0% | **50.8%** |
+
+次: 節ペアを `pref_dataset` に載せ、CE を再学習して LOPO / 難試験で構成選好が載るか測る。
+長い節は `max_length=512` を超えうるため、トークン上限と切り詰め方針も要検討。
 
 ## 生成モデルへの埋め込み（系統1 / 系統3）
 
@@ -241,7 +267,8 @@ kNN 実例注入（系統4）は過去に失敗しており、採用しない。
 | 3b | BT 報酬の cross-encoder 化（ModernBERT-ja） | 3a | GPU | **採用**（難試験で BT を上回る。Top-1 0.50 / ペア 0.837） |
 | 3c | 選抜難試験（LLM ベース＋人手） | 3a | CPU＋人手 | v1 実施済み（20項目）。拡充は継続（[HARD-EVAL.md](HARD-EVAL.md)） |
 | 3d | CE の運用組み込み（rank / converge） | 3b | CPU | 済み（meta.json で BT/CE 自動判別。rank の既定は pref-ce） |
-| 3e | 難試験 v2: 節（複数段落）単位の項目 | 3c | CPU＋人手 | 未着手。段落単位では構成の選好を測れない（[HARD-EVAL.md](HARD-EVAL.md)） |
+| 3e | 難試験 v2: 節（複数段落）単位の項目 | 3c | CPU＋人手 | 未着手。試験設計は [HARD-EVAL.md](HARD-EVAL.md) |
+| 3f | 節単位ペアの再採掘と CE 再学習 | 3b | CPU＋GPU | 採掘済み 484 件。pref 化・再学習はこれから |
 | 4 | Best-of-N と収束判定のループ実装 | 3a | CPU | 済み |
 | 5 | 要推敲検出器の採掘拡張 | 1 | CPU | 未着手 |
 | 6a | activation steering 読み取り（フェーズ A） | データ | GPU（短） | 計測済み（弱め）・B/C 見送り |
