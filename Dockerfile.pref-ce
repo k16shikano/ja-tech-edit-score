@@ -1,0 +1,29 @@
+# 高火力 DOK 向け: cross-encoder 報酬モデル（段階2b）の学習・LOPO 評価
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements-pref-ce.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements-pref-ce.txt
+
+COPY scripts/train_pref_ce.py scripts/eval_pref_ce_xproject.py scripts/
+COPY scripts/dok_pref_ce.sh /app/dok_pref_ce.sh
+RUN chmod +x /app/dok_pref_ce.sh
+
+# 選好データ（非公開原稿由来。非公開レジストリにのみ push）
+COPY data/pref_dataset.jsonl data/pref_dataset.jsonl
+COPY data/pref_split/train.jsonl data/pref_split/train.jsonl
+COPY data/pref_split/valid.jsonl data/pref_split/valid.jsonl
+
+ENV PYTHONUNBUFFERED=1
+ENV MODE=xproject
+ENV BASE_MODEL=sbintuitions/modernbert-ja-130m
+ENV MAX_LENGTH=512
+ENV BATCH_SIZE=16
+ENV EPOCHS=2
+ENV LR=3e-5
+ENV GRAD_ACCUM=1
+ENV PRECISION=auto
+
+ENTRYPOINT ["/bin/bash", "/app/dok_pref_ce.sh"]

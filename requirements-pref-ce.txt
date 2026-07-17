@@ -1,0 +1,3 @@
+# cross-encoder 報酬モデル（段階2b）用。ベースイメージの torch を使う
+transformers>=4.48,<5
+numpy

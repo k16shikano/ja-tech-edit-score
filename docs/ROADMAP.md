@@ -107,13 +107,17 @@ in-domain valid accuracy は 0.983（旧 hotchpotch 時 0.972）。
 これで閾値判定・Best-of-N・収束判定のループに直接使える絶対スコアが手に入った。
 弱い fold は引き続き `compute-whatis`（0.859）。
 
-### 段階 2b: cross-encoder の fine-tune（未着手・GPU）
+### 段階 2b: cross-encoder の fine-tune（実装済み・計測待ち・GPU）
 
 凍結埋め込みで頭打ちが見えたら、エンコーダ自体を学習する。
 
 - `(source, candidate)` を連結して 1 つのスカラーを出す cross-encoder 構成
 - ベース候補: `sbintuitions/modernbert-ja-130m` / `310m`（ruri と同系統）
 - GPU 1 枚で数十分から数時間の規模。さくらの高火力 DOK（コンテナ実行、秒課金）が合う
+
+**実装済み**: `scripts/train_pref_ce.py` / `scripts/eval_pref_ce_xproject.py` / `scripts/pref_ce_runtime.py`（`make train-ce` / `make eval-ce-xproject`）。
+DOK 手順は [DOK-PREF-CE.md](DOK-PREF-CE.md)。
+採否は LOPO micro pair accuracy を pref-bt（0.975）と比較して決める。
 
 ## ループエンジニアリング
 
@@ -216,11 +220,11 @@ kNN 実例注入（系統4）は過去に失敗しており、採用しない。
 | 1 | 評価プロトコルの整備（cross-project 分割） | なし | CPU | 済み |
 | 2 | 凍結埋め込みの差し替え比較 → ruri-v3-30m 採用 | 1 | CPU | 済み |
 | 3a | BT 報酬モデル（凍結 ruri + 線形ヘッド） | 2 | CPU | 済み |
-| 3b | BT 報酬の cross-encoder 化（ModernBERT-ja） | 3a | GPU | 未着手 |
+| 3b | BT 報酬の cross-encoder 化（ModernBERT-ja） | 3a | GPU | 脚本あり・計測待ち（[DOK-PREF-CE.md](DOK-PREF-CE.md)） |
 | 4 | Best-of-N と収束判定のループ実装 | 3a | CPU | 済み |
 | 5 | 要推敲検出器の採掘拡張 | 1 | CPU | 未着手 |
 | 6a | activation steering 読み取り（フェーズ A） | データ | GPU（短） | 計測済み（弱め）・B/C 見送り |
-| 6b | 編集モデルの SFT（フェーズ0〜1） | 3a | GPU | フェーズ0済み・フェーズ1脚本あり |
+| 6b | 編集モデルの SFT（フェーズ0〜1） | 3a | GPU | 実施済み・BT 評価で規範スキルに敗北（勝率 0.269）・縮小 |
 
 「推敲済み日本語の安定生成」という大目標に対しては、生成モデルより先に良い報酬モデル（絶対スコア）を持つことがボトルネック解消になる。
 報酬モデルがあれば、生成側はフロンティア LLM + 規範スキルでも水準に届き、自前の fine-tune / steering はその後の最適化になる。

@@ -33,7 +33,10 @@ STEERING_LIMIT ?= 0
 STEERING_BATCH_SIZE ?= 1
 STEERING_MAX_LENGTH ?= 2048
 
-.PHONY: help venv data train train-bt eval-xproject eval-bt-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score
+CE_OUTPUT_DIR := $(ROOT)outputs/pref-ce
+CE_BASE_MODEL ?= sbintuitions/modernbert-ja-130m
+
+.PHONY: help venv data train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score
 
 help:
 	@echo "Targets:"
@@ -45,6 +48,8 @@ help:
 	@echo "  make train-bt      # Bradley-Terry 報酬モデル（絶対スコア）"
 	@echo "  make eval-xproject # leave-one-project-out（ペア分類）"
 	@echo "  make eval-bt-xproject # leave-one-project-out（BT 報酬）"
+	@echo "  make train-ce      # 段階2b: cross-encoder 報酬（GPU 推奨、DOK 可）"
+	@echo "  make eval-ce-xproject [ONLY_PROJECTS=a,b] # LOPO（cross-encoder、GPU）"
 	@echo "  make check FILE=<path> [BASE=...] [EDIT=...] [FORMAT=markdown|text|json]  # 選好チェック"
 	@echo "  make compare SOURCE=... CANDIDATE_A=... CANDIDATE_B=..."
 	@echo "  make score-bt SOURCE=... CANDIDATE=...  # BT 絶対スコア"
@@ -134,6 +139,28 @@ train-bt: $(PREF_SPLIT)/train.jsonl $(PREF_SPLIT)/valid.jsonl
 	  --text-prefix "$(TEXT_PREFIX)" \
 	  --max-seq-length $(MAX_SEQ_LENGTH) \
 	  --batch-size $(BATCH_SIZE)
+
+train-ce: $(PREF_SPLIT)/train.jsonl $(PREF_SPLIT)/valid.jsonl
+	@test -s "$(PREF_SPLIT)/train.jsonl" || (echo "no split: run make train first" && exit 1)
+	$(PYTHON) scripts/train_pref_ce.py \
+	  --base-model "$(CE_BASE_MODEL)" \
+	  --train-file "$(PREF_SPLIT)/train.jsonl" \
+	  --eval-file "$(PREF_SPLIT)/valid.jsonl" \
+	  --output-dir "$(CE_OUTPUT_DIR)" \
+	  $(if $(CE_EPOCHS),--epochs $(CE_EPOCHS),) \
+	  $(if $(CE_BATCH_SIZE),--batch-size $(CE_BATCH_SIZE),) \
+	  $(if $(CE_LR),--lr $(CE_LR),)
+
+eval-ce-xproject: $(PREF)
+	@test -s "$(PREF)" || (echo "no pref dataset: run make train first" && exit 1)
+	$(PYTHON) scripts/eval_pref_ce_xproject.py \
+	  --input "$(PREF)" \
+	  --base-model "$(CE_BASE_MODEL)" \
+	  $(if $(CE_EPOCHS),--epochs $(CE_EPOCHS),) \
+	  $(if $(CE_BATCH_SIZE),--batch-size $(CE_BATCH_SIZE),) \
+	  $(if $(CE_LR),--lr $(CE_LR),) \
+	  $(if $(ONLY_PROJECTS),--only-projects "$(ONLY_PROJECTS)",) \
+	  --report "$(or $(REPORT),$(ROOT)outputs/eval_ce_xproject.json)"
 
 eval-xproject: $(PREF)
 	@test -s "$(PREF)" || (echo "no pref dataset: run make train first" && exit 1)
