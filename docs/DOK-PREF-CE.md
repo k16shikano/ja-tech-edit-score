@@ -44,8 +44,10 @@ fold は 13〜14 個あるので、LOPO 全体は「1 fold の学習時間 × fo
 
 `eval_ce_xproject.json` の `micro_pair_accuracy` を pref-bt（0.975）と比べる。
 
-- 明確に上回る（目安 +1pt 以上）→ `MODE=train` で 1 本作り、`outputs/pref-ce/` に置いて `rank` / `converge` の CE 対応を進める
+- 明確に上回る（目安 +1pt 以上）→ `MODE=train` で 1 本作り、`outputs/pref-ce/` に置く
 - 同等以下 → 凍結埋め込み＋線形ヘッドで十分という知見。段階2b は閉じる
+
+**選抜への採用**は LOPO だけでは決めない。LLM ベース＋人手の難試験（[HARD-EVAL.md](HARD-EVAL.md)）で pref-bt と比較する。
 
 ローカルで動かす場合（GPU があれば）:
 

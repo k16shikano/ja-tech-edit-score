@@ -117,7 +117,9 @@ in-domain valid accuracy は 0.983（旧 hotchpotch 時 0.972）。
 
 **実装済み**: `scripts/train_pref_ce.py` / `scripts/eval_pref_ce_xproject.py` / `scripts/pref_ce_runtime.py`（`make train-ce` / `make eval-ce-xproject`）。
 DOK 手順は [DOK-PREF-CE.md](DOK-PREF-CE.md)。
-採否は LOPO micro pair accuracy を pref-bt（0.975）と比較して決める。
+採否の **配線確認・相対比較** は LOPO micro pair accuracy（pref-bt は 0.975）。
+全 fold で CE（modernbert-ja-130m）は micro **0.9995** まで到達した（甘い試験での勝ち）。
+**選抜本線の採用**は [HARD-EVAL.md](HARD-EVAL.md)（LLM ベース＋人手ラベル）で決める。
 
 ## ループエンジニアリング
 
@@ -220,7 +222,8 @@ kNN 実例注入（系統4）は過去に失敗しており、採用しない。
 | 1 | 評価プロトコルの整備（cross-project 分割） | なし | CPU | 済み |
 | 2 | 凍結埋め込みの差し替え比較 → ruri-v3-30m 採用 | 1 | CPU | 済み |
 | 3a | BT 報酬モデル（凍結 ruri + 線形ヘッド） | 2 | CPU | 済み |
-| 3b | BT 報酬の cross-encoder 化（ModernBERT-ja） | 3a | GPU | 脚本あり・計測待ち（[DOK-PREF-CE.md](DOK-PREF-CE.md)） |
+| 3b | BT 報酬の cross-encoder 化（ModernBERT-ja） | 3a | GPU | LOPO micro 0.9995（甘い試験）。採用は難試験待ち |
+| 3c | 選抜難試験（LLM ベース＋人手） | 3a | CPU＋人手 | 設計・採点脚本あり（[HARD-EVAL.md](HARD-EVAL.md)） |
 | 4 | Best-of-N と収束判定のループ実装 | 3a | CPU | 済み |
 | 5 | 要推敲検出器の採掘拡張 | 1 | CPU | 未着手 |
 | 6a | activation steering 読み取り（フェーズ A） | データ | GPU（短） | 計測済み（弱め）・B/C 見送り |

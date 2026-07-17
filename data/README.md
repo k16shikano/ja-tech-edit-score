@@ -24,3 +24,9 @@
 生成はリポジトリルートで `make data` を実行する。
 選好評価モデルの再学習は `make train`（出力は `outputs/pref-static/` を上書きする）。
 推論に使うモデルはリポジトリ同梱の `outputs/pref-static/` を参照する。
+
+## 選抜難試験（Hard Eval）
+
+- スキーマ: `hard_eval.schema.json`
+- テンプレート: `hard_eval.template.jsonl`
+- ラベル済み実データ: `hard_eval/`（gitignore。手順は [docs/HARD-EVAL.md](../docs/HARD-EVAL.md)）

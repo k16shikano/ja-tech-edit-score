@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hard Eval Item (LLM-base selection test)",
+  "type": "object",
+  "required": ["id", "base_text", "candidates", "status"],
+  "properties": {
+    "id": { "type": "string" },
+    "seed_text": {
+      "type": "string",
+      "description": "Meaning seed only. Not used as scoring source."
+    },
+    "seed_meta": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "base_text": {
+      "type": "string",
+      "description": "LLM paraphrase used as s(base, candidate) source."
+    },
+    "base_generator": { "type": "string" },
+    "candidates": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["id", "text"],
+        "properties": {
+          "id": { "type": "string" },
+          "text": { "type": "string" },
+          "generator": { "type": "string" },
+          "prompt_tag": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "human": {
+      "type": "object",
+      "properties": {
+        "best_id": { "type": "string" },
+        "rank": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Best-first candidate ids. Optional."
+        },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "labeled", "skipped"]
+    }
+  },
+  "additionalProperties": true
+}

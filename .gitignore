@@ -15,6 +15,7 @@ data/pref_split/
 data/curate_report.json
 data/revision_pairs.jsonl
 data/edit_sft/
+data/hard_eval/
 data/batch_import_repos.txt
 tmp/
 
@@ -26,8 +27,11 @@ outputs/pref-static/*
 !outputs/pref-static/model.joblib
 !outputs/pref-static/metrics.json
 
-# Keep templates
+# Keep templates / schemas
 !data/.gitkeep
 !data/examples.schema.json
 !data/examples.template.jsonl
+!data/hard_eval.schema.json
+!data/hard_eval.template.jsonl
 !data/README.md
+!data/batch_import_repos.example.txt
