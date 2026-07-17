@@ -36,12 +36,33 @@ export REGISTRY=（名前）.sakuracr.jp
 | GPU | V100 で可（130m。310m なら H100 か `GRADIENT_CHECKPOINTING=1`） |
 | コマンド | **空** |
 
-| 環境変数 | スモーク | 本番 |
-|----------|----------|------|
-| `MODE` | `xproject` | `xproject` → 勝ったら `train` |
-| `ONLY_PROJECTS` | `ir-system`（1 fold だけ） | 未設定（全 fold） |
-| `BASE_MODEL` | 未設定（`sbintuitions/modernbert-ja-130m`） | 同じ。比較で `310m` も |
-| `EPOCHS` / `LR` / `BATCH_SIZE` | 未設定（2 / 3e-5 / 16） | 必要なら調整 |
+| 環境変数 | スモーク | 本番 | 長文化実験 |
+|----------|----------|------|------------|
+| `MODE` | `xproject` | `xproject` → 勝ったら `train` | `train` |
+| `ONLY_PROJECTS` | `ir-system`（1 fold だけ） | 未設定（全 fold） | 未設定 |
+| `BASE_MODEL` | 未設定（`sbintuitions/modernbert-ja-130m`） | 同じ。比較で `310m` も | 同じ |
+| `MAX_LENGTH` | 未設定（512） | 未設定（512） | **`2048`**（まずここ） |
+| `BATCH_SIZE` | 未設定（16） | 未設定 | **`4`**（V100 なら。OOM なら `2`） |
+| `GRADIENT_CHECKPOINTING` | 未設定 | 未設定 | **`1`**（長文時推奨） |
+| `EPOCHS` / `LR` | 未設定（2 / 3e-5） | 必要なら調整 | 同じ |
+
+### 長文化実験（2026-07-17）
+
+モデル自体は `max_position_embeddings=8192`。いままでの 512 は学習・採点の設定上限。
+学習ペアの大半は 512 以内（p95≈405）だが、held-out 節ペアは p50≈1206・p90≈1945 で、
+512 では 14%、**2048 なら 92%** が切らずに入る。構成試験（v2）の切り詰めを外すのが主目的。
+
+```bash
+# イメージは既存の ja-tech-edit.sakuracr.jp/pref-ce:latest で可（再 build 不要）
+# DOK 環境変数:
+MODE=train
+MAX_LENGTH=2048
+BATCH_SIZE=4
+GRADIENT_CHECKPOINTING=1
+```
+
+成果物は `outputs/pref-ce-ml2048/` などに置き、Hard Eval v2（構成改悪）と v2b（human/fable/copy）で
+512 版と比較する。OOM なら `BATCH_SIZE=2`、まだ厳しければ `MAX_LENGTH=1024`。
 
 - `MODE=xproject`: fold ごとにベースから学習し直す LOPO。成果物は `eval_ce_xproject.json`
 - `MODE=train`: `pref_split` の train/valid で 1 本学習。成果物は `pref-ce/`（HF モデル一式 + metrics）

@@ -290,7 +290,7 @@ kNN 実例注入（系統4）は過去に失敗しており、採用しない。
 | 3c | 選抜難試験（LLM ベース＋人手） | 3a | CPU＋人手 | v1 実施済み（20項目）。拡充は継続（[HARD-EVAL.md](HARD-EVAL.md)） |
 | 3d | CE の運用組み込み（rank / converge） | 3b | CPU | 済み（meta.json で BT/CE 自動判別。rank の既定は pref-ce） |
 | 3e | 難試験 v2: 節（複数段落）単位の項目 | 3c | CPU＋人手 | 定義ラベル済み（human>deg-join>deg-split>base>deg-reverse）。採点比較へ |
-| 3f | 節単位ペアの再採掘と CE 再学習 | 3b | CPU＋GPU | **済み・採用**。節ペア込み CE（`pref-ce-beyond-para`）を本線に。構成識別力の実測は 3e（難試験 v2）へ |
+| 3f | 節単位ペアの再採掘と CE 再学習 | 3b | CPU＋GPU | **済み・採用**。節ペア込み CE（`pref-ce-beyond-para`）を本線に。構成識別力の実測は 3e（難試験 v2）へ。次: `MAX_LENGTH=2048` 再学習 |
 | 4 | Best-of-N と収束判定のループ実装 | 3a | CPU | 済み |
 | 5 | 要推敲検出器の採掘拡張 | 1 | CPU | 未着手 |
 | 6a | activation steering 読み取り（フェーズ A） | データ | GPU（短） | 計測済み（弱め）・B/C 見送り |
