@@ -1,3 +1,6 @@
 # cross-encoder 報酬モデル（段階2b）用。ベースイメージの torch を使う
 transformers>=4.48,<5
 numpy
+# ModernBERT-ja 等の tokenizer（Llama 系 fast tokenizer）に必要
+sentencepiece>=0.2.0
+protobuf>=4.25.0

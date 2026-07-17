@@ -65,3 +65,10 @@ make train-ce                                    # 1 本学習 → outputs/pref-
 | `scripts/dok_pref_ce.sh` | DOK 起動処理 |
 | `Dockerfile.pref-ce` | 箱 |
 | `scripts/build_push_pref_ce_image.sh` | build & push |
+
+## うまくいかないとき
+
+| 症状 | 見ること |
+|------|----------|
+| `docker login` / push 失敗 | レジストリ認証。非公開レジストリのみ push |
+| tokenizer で `sentencepiece` / `protobuf` エラー | イメージを再ビルド（`requirements-pref-ce.txt` に同梱済み） |
