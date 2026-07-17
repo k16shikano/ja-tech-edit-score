@@ -9,7 +9,7 @@ from pathlib import Path
 
 from joblib import load
 
-from pref_bt_runtime import load_bt_model, score_candidates_bt
+from pref_scorer import load_scorer
 from pref_static_utils import load_sentence_model_from_artifact, static_pair_preference_inference
 
 
@@ -67,14 +67,19 @@ def bt_convergence(
   *,
   min_improvement: float,
 ) -> dict:
-  """BT: s(source, revised) - s(source, current) が閾値未満なら収束。"""
-  loaded = load_bt_model(model_dir)
-  scores = score_candidates_bt(loaded, source, [current, revised], batch_size=4)
+  """報酬スコア: s(source, revised) - s(source, current) が閾値未満なら収束。
+
+  モデルは pref-bt / pref-ce を meta.json で自動判別する。
+  スコアのスケールはモデルごとに異なるので、min_improvement はモデルに合わせて選ぶ。
+  """
+  scorer = load_scorer(model_dir)
+  scores = scorer.score(source, [current, revised], batch_size=4)
   score_current, score_revised = scores
   improvement = score_revised - score_current
   converged = improvement < min_improvement
   return {
     "mode": "bt",
+    "scorer": scorer.kind,
     "converged": converged,
     "min_improvement": min_improvement,
     "score_current": score_current,

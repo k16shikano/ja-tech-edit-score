@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# Rank N revision candidates with the BT reward model (Best-of-N).
+# Rank N revision candidates with the reward model (Best-of-N).
+# Prefers the cross-encoder (outputs/pref-ce) when present; falls back to BT.
 set -euo pipefail
 
 JA_TECH_EDIT_SCORE_HOME="${JA_TECH_EDIT_SCORE_HOME:-${HOME}/dev/ja-tech-edit-score}"
 PYTHON="${JA_TECH_EDIT_SCORE_PYTHON:-${JA_TECH_EDIT_SCORE_HOME}/.venv/bin/python3}"
-MODEL="${JA_TECH_EDIT_SCORE_BT_MODEL:-${JA_TECH_EDIT_SCORE_HOME}/outputs/pref-bt}"
+DEFAULT_MODEL="${JA_TECH_EDIT_SCORE_HOME}/outputs/pref-bt"
+if [[ -d "${JA_TECH_EDIT_SCORE_HOME}/outputs/pref-ce" ]]; then
+  DEFAULT_MODEL="${JA_TECH_EDIT_SCORE_HOME}/outputs/pref-ce"
+fi
+MODEL="${JA_TECH_EDIT_SCORE_RANK_MODEL:-${JA_TECH_EDIT_SCORE_BT_MODEL:-${DEFAULT_MODEL}}}"
 
 if [[ ! -x "${PYTHON}" ]]; then
   PYTHON=python3

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Best-of-N: BT 報酬で複数候補をランク付けし最良を選ぶ。"""
+"""Best-of-N: 報酬モデル（pref-bt / pref-ce 自動判別）で複数候補をランク付けし最良を選ぶ。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import argparse
 import json
 from pathlib import Path
 
-from pref_bt_runtime import load_bt_model, score_candidates_bt
+from pref_scorer import load_scorer
 
 
 def read_text(value: str | None, file_path: str | None) -> str:
@@ -40,7 +40,7 @@ def load_candidates(args: argparse.Namespace) -> list[tuple[str, str]]:
 
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument("--model", required=True, help="pref-bt model directory")
+  parser.add_argument("--model", required=True, help="pref-bt or pref-ce model directory")
   parser.add_argument("--source-text")
   parser.add_argument("--source-file")
   parser.add_argument(
@@ -80,10 +80,10 @@ def main() -> None:
     labels = ["__source__"] + labels
     texts = [source] + texts
 
-  loaded = load_bt_model(Path(args.model))
-  scores = score_candidates_bt(loaded, source, texts, batch_size=args.batch_size)
+  scorer = load_scorer(Path(args.model))
+  scores = scorer.score(source, texts, batch_size=args.batch_size)
   source_score = scores[0] if args.include_source else float(
-    score_candidates_bt(loaded, source, [source], batch_size=1)[0]
+    scorer.score(source, [source], batch_size=1)[0]
   )
 
   ranked = sorted(
@@ -112,6 +112,7 @@ def main() -> None:
     reject_reason = f"margin_vs_source {best['margin_vs_source']:.4f} < min_margin {args.min_margin}"
 
   payload = {
+    "scorer": scorer.kind,
     "accepted": accepted,
     "reject_reason": reject_reason,
     "winner_label": best["label"] if accepted else None,

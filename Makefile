@@ -204,11 +204,13 @@ score-bt:
 	  --source-text "$(SOURCE)" \
 	  --candidate-text "$(CANDIDATE)"
 
+RANK_MODEL ?= $(if $(wildcard $(CE_OUTPUT_DIR)),$(CE_OUTPUT_DIR),$(BT_OUTPUT_DIR))
+
 rank:
 	@test -n "$(SOURCE)" || (echo "SOURCE is required (text or use SOURCE_FILE=)" && exit 1)
 	@test -n "$(CANDIDATE_FILES)$(CANDIDATES_DIR)" || (echo "CANDIDATE_FILES or CANDIDATES_DIR is required" && exit 1)
 	$(PYTHON) scripts/rank_pref_bt.py \
-	  --model "$(BT_OUTPUT_DIR)" \
+	  --model "$(RANK_MODEL)" \
 	  $(if $(SOURCE_FILE),--source-file "$(SOURCE_FILE)",--source-text "$(SOURCE)") \
 	  $(foreach f,$(CANDIDATE_FILES),--candidate-file "$(f)") \
 	  $(if $(CANDIDATES_DIR),--candidates-dir "$(CANDIDATES_DIR)",) \
