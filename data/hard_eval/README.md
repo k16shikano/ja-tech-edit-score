@@ -75,4 +75,24 @@ make hard-eval-score INPUT=data/hard_eval/bases_v2_labeled.jsonl SCORER=ce MODEL
 make hard-eval-score INPUT=data/hard_eval/bases_v2_labeled.jsonl SCORER=bt MODEL=outputs/pref-bt REPORT=outputs/hard_eval_v2_report_bt.json
 ```
 
-新旧 CE（節ペア込み vs hunk のみ）の差は、deg-* を human より下に置けるかで見る。
+## v2b（human / fable / copy）
+
+トークン予算内の v2 項目について、copy（下書き）を Fable に推敲させた候補を足した3候補試験。
+
+| 候補 | 中身 |
+|------|------|
+| `human` | held-out 実編集 |
+| `fable` | copy を Fable が推敲（規範スキルなしの指示。実装ではサブエージェント経由） |
+| `copy` | 下書きそのもの |
+
+参考順位: `human > fable > copy`。ただし主眼は成否ではなく **スコア差（マージン）**。
+
+```bash
+# 生成（Fable 推敲 JSON が必要）
+.venv/bin/python3 scripts/build_hard_eval_v2b_fable.py
+
+make hard-eval-score INPUT=data/hard_eval/bases_v2b_human_fable_copy.jsonl SCORER=ce MODEL=outputs/pref-ce-beyond-para REPORT=outputs/hard_eval_v2b_report_ce_beyond_para.json
+.venv/bin/python3 scripts/analyze_hard_eval_margins.py --report outputs/hard_eval_v2b_report_ce_beyond_para.json
+```
+
+`fable_position`: copy=0・human=1 としたときの fable の相対位置。0〜1 なら期待どおりの間にいる。
