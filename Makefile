@@ -36,7 +36,7 @@ STEERING_MAX_LENGTH ?= 2048
 CE_OUTPUT_DIR := $(ROOT)outputs/pref-ce
 CE_BASE_MODEL ?= sbintuitions/modernbert-ja-130m
 
-.PHONY: help venv data mine-sections section-pref-data train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score build-pref-ce-image
+.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image
 
 help:
 	@echo "Targets:"
@@ -108,6 +108,15 @@ data:
 
 mine-sections:
 	bash scripts/batch_mine_sections.sh
+
+mine-heldout-sections:
+	bash scripts/batch_mine_heldout_sections.sh
+
+hard-eval-v2-build:
+	$(PYTHON) scripts/build_hard_eval_v2.py \
+	  --input "$(or $(INPUT),$(ROOT)data/examples.section.heldout.jsonl)" \
+	  --out "$(or $(OUTPUT),$(ROOT)data/hard_eval/bases_v2.jsonl)" \
+	  --preview "$(or $(PREVIEW),$(ROOT)data/hard_eval/bases_v2_candidates_preview.md)"
 
 section-pref-data:
 	bash scripts/build_section_pref_pipeline.sh

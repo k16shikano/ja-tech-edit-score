@@ -208,7 +208,7 @@ def main() -> None:
   for path in paths:
     if Path(path).suffix.lower() not in TEXT_SUFFIXES:
       continue
-    if not file_exists_at_ref(repo, base, path) or not file_exists_at_ref(repo, edit, path):
+    if not file_exists_at_ref(repo, args.base, path) or not file_exists_at_ref(repo, args.edit, path):
       continue
     mined = mine_file_sections(
       repo,
