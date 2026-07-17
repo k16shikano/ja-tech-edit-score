@@ -61,8 +61,23 @@ BATCH_SIZE=4
 GRADIENT_CHECKPOINTING=1
 ```
 
-成果物は `outputs/pref-ce-ml2048/` などに置き、Hard Eval v2（構成改悪）と v2b（human/fable/copy）で
-512 版と比較する。OOM なら `BATCH_SIZE=2`、まだ厳しければ `MAX_LENGTH=1024`。
+成果物: `outputs/pref-ce-ml2048/`（in-domain valid pair accuracy 1.0）。
+
+Hard Eval 比較（2026-07-18）:
+
+| 試験 | モデル | Top-1 | ペア | human>deg-reverse | human>fable |
+|------|--------|------:|-----:|------------------:|------------:|
+| v2 短文（512予算） | beyond-para | 0.00 | 0.450 | 4/24 | — |
+| v2 短文 | **ml2048** | 0.00 | **0.546** | **10/24** | — |
+| v2 長文（2048予算, 14/24が>512） | beyond-para（切る） | 0.00 | 0.408 | 2/24 | — |
+| v2 長文 | **ml2048** | 0.00 | **0.529** | **8/24** | — |
+| v2 長文 | BT | 0.00 | 0.446 | 3/24 | — |
+| v2b | beyond-para | 0.29 | 0.736 | — | 7/24 |
+| v2b | **ml2048** | **0.42** | **0.792** | — | **10/24** |
+| v2b | BT | 0.67 | 0.833 | — | 16/24 |
+
+長文化で構成・微差とも改善するが、Top-1=0（構成改悪を human より上に置きがち）と
+fable 過大評価は残る。切り詰め除去だけでは足りない。
 
 - `MODE=xproject`: fold ごとにベースから学習し直す LOPO。成果物は `eval_ce_xproject.json`
 - `MODE=train`: `pref_split` の train/valid で 1 本学習。成果物は `pref-ce/`（HF モデル一式 + metrics）
