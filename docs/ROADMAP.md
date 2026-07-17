@@ -119,7 +119,23 @@ in-domain valid accuracy は 0.983（旧 hotchpotch 時 0.972）。
 DOK 手順は [DOK-PREF-CE.md](DOK-PREF-CE.md)。
 採否の **配線確認・相対比較** は LOPO micro pair accuracy（pref-bt は 0.975）。
 全 fold で CE（modernbert-ja-130m）は micro **0.9995** まで到達した（甘い試験での勝ち）。
-**選抜本線の採用**は [HARD-EVAL.md](HARD-EVAL.md)（LLM ベース＋人手ラベル）で決める。
+
+**難試験の結果（2026-07-17、bases_v1、20項目 × 6候補、人手全順位つき）**:
+
+| 指標 | pref-bt | pref-ce |
+|------|--------:|--------:|
+| Top-1 一致 | 0.45 (9/20) | **0.50 (10/20)** |
+| ペア一致率 | 0.830 (249/300) | **0.837 (251/300)** |
+| human の中央順位 | 1 位 | **0.5 位** |
+| スコア↔長さ Spearman | 0.50 | 0.57 |
+
+- 両モデルとも `base`（無改変）は全 20 項目で最下位に置けた。
+- Top-1 で判定が割れた 5 項目は CE 3 勝・BT 2 勝。似た LLM 推敲の中から人間編集を拾う場面で CE が上回る。
+- 差は小さい（Top-1 +1 件、ペア +2 件）が、全集計指標で CE が上回り、LOPO の傾向とも一貫する。
+- 留意: 今回のラベルは全項目で human が best（Top-1 は実質「human を当てる」試験）。また長さ相関は CE の方が高く、長文バイアスの監視は継続する。
+
+**判定: pref-ce を選好評価モデルの本線として採用する。**
+Top-1 0.50 は「似た候補の選抜」にはまだ不足なので、難試験の拡充と長さバイアス対策を並行する。
 
 ## ループエンジニアリング
 
@@ -222,8 +238,9 @@ kNN 実例注入（系統4）は過去に失敗しており、採用しない。
 | 1 | 評価プロトコルの整備（cross-project 分割） | なし | CPU | 済み |
 | 2 | 凍結埋め込みの差し替え比較 → ruri-v3-30m 採用 | 1 | CPU | 済み |
 | 3a | BT 報酬モデル（凍結 ruri + 線形ヘッド） | 2 | CPU | 済み |
-| 3b | BT 報酬の cross-encoder 化（ModernBERT-ja） | 3a | GPU | LOPO micro 0.9995（甘い試験）。採用は難試験待ち |
-| 3c | 選抜難試験（LLM ベース＋人手） | 3a | CPU＋人手 | 設計・採点脚本あり（[HARD-EVAL.md](HARD-EVAL.md)） |
+| 3b | BT 報酬の cross-encoder 化（ModernBERT-ja） | 3a | GPU | **採用**（難試験で BT を上回る。Top-1 0.50 / ペア 0.837） |
+| 3c | 選抜難試験（LLM ベース＋人手） | 3a | CPU＋人手 | v1 実施済み（20項目）。拡充は継続（[HARD-EVAL.md](HARD-EVAL.md)） |
+| 3d | CE の運用組み込み（rank / converge / check） | 3b | CPU | 未着手 |
 | 4 | Best-of-N と収束判定のループ実装 | 3a | CPU | 済み |
 | 5 | 要推敲検出器の採掘拡張 | 1 | CPU | 未着手 |
 | 6a | activation steering 読み取り（フェーズ A） | データ | GPU（短） | 計測済み（弱め）・B/C 見送り |

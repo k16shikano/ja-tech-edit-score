@@ -36,7 +36,7 @@ STEERING_MAX_LENGTH ?= 2048
 CE_OUTPUT_DIR := $(ROOT)outputs/pref-ce
 CE_BASE_MODEL ?= sbintuitions/modernbert-ja-130m
 
-.PHONY: help venv data train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-score
+.PHONY: help venv data train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score
 
 help:
 	@echo "Targets:"
@@ -50,6 +50,7 @@ help:
 	@echo "  make eval-bt-xproject # leave-one-project-out（BT 報酬）"
 	@echo "  make train-ce      # 段階2b: cross-encoder 報酬（GPU 推奨、DOK 可）"
 	@echo "  make eval-ce-xproject [ONLY_PROJECTS=a,b] # LOPO（cross-encoder、GPU）"
+	@echo "  make hard-eval-label  # Markdown の候補順を labeled JSONL に変換"
 	@echo "  make hard-eval-score INPUT=... SCORER=bt|ce MODEL=...  # 選抜難試験の採点"
 	@echo "  make check FILE=<path> [BASE=...] [EDIT=...] [FORMAT=markdown|text|json]  # 選好チェック"
 	@echo "  make compare SOURCE=... CANDIDATE_A=... CANDIDATE_B=..."
@@ -254,6 +255,12 @@ edit-sft-score:
 	$(PYTHON) scripts/score_edit_sft_eval.py \
 	  --eval-dir "$(ROOT)outputs/edit-sft-eval" \
 	  --bt-model "$(BT_OUTPUT_DIR)"
+
+hard-eval-label:
+	$(PYTHON) scripts/import_hard_eval_preview_rank.py \
+	  --preview "$(or $(PREVIEW),$(ROOT)data/hard_eval/bases_v1_candidates_preview.md)" \
+	  --source "$(or $(SOURCE),$(ROOT)data/hard_eval/bases_v1_candidates.jsonl)" \
+	  --output "$(or $(OUTPUT),$(ROOT)data/hard_eval/bases_v1_labeled.jsonl)"
 
 hard-eval-score:
 	@test -n "$(INPUT)" || (echo "INPUT=data/hard_eval/labeled.jsonl is required" && exit 1)
