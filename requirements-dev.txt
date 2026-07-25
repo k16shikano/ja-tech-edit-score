@@ -1,0 +1,3 @@
+# 開発・バッチ用（make venv には入れない）
+#   .venv/bin/python3 -m pip install -r requirements-dev.txt
+cursor-sdk
