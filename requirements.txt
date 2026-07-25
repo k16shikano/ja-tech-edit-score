@@ -3,3 +3,5 @@ scikit-learn>=1.0.0
 joblib>=1.2.0
 sentencepiece>=0.1.99
 protobuf>=4.0.0
+sentence-transformers>=2.2.0
+torch>=2.0.0
