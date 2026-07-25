@@ -1,0 +1,158 @@
+# DOK で文列 Transformer 報酬モデル（pref-sentseq）
+
+[ROADMAP.md](ROADMAP.md) の新系統。文書を文単位に分割し、凍結 ruri 埋め込みの列を小さい Transformer に読ませる。
+pref-bt（文書全体を 1 ベクトル、LOPO micro 0.975）や pref-ce（cross-encoder）と違い、
+**文の順序と段落境界が入力構造として残る** ことを狙う。
+
+## モデル設計
+
+1. **文分割**（`scripts/sentseq_utils.py`、バージョン `v1`）
+   - 段落境界: 空行（`\n\n` 以上）
+   - 通常段落: 「。」「！」「？」および閉じ括弧（`」』)]`）直後で分割
+   - 見出し行（`#` 始まり）、箇条書き行（`-` / `*` / 番号）、コードフェンス内の各行: **1 行 = 1 文**
+   - 1 文書あたり最大 128 文で切り詰め
+
+2. **文埋め込み**
+   - `cl-nagoya/ruri-v3-30m`（凍結、`text_prefix="文章: "`、`max_seq_length=256`、L2 正規化）
+   - ユニーク文を一括エンコードしてキャッシュ
+
+3. **系列**
+   - 先頭に学習可能な `[DOC]`（プーリング用）
+   - 各文ベクトルを線形射影して `d_model=256` に載せ、学習可能な位置埋め込みを加算
+   - **段落境界**: 各段落の先頭文に学習可能な「段落開始」埋め込みを加算（`para_boundary_mode=para_start_embedding`）。
+     `[PARA]` トークン挿入は採用していない。
+
+4. **エンコーダ**
+   - `nn.TransformerEncoder` 2 層、`nhead=4`、`dim_feedforward=512`、`dropout=0.1`
+   - `[DOC]` 位置の出力を文書ベクトルとする
+
+5. **スコア**
+   - source / candidate を同じエンコーダで文書ベクトル化
+   - pref-bt と同型の点特徴（source、candidate、差、絶対差、コサイン、文字長）→ 線形ヘッド → 1 スカラー
+   - Bradley-Terry 損失 `softplus(-(s_chosen - s_rejected))` の平均
+
+## 前提
+
+- `data/pref_dataset.jsonl` と `data/pref_split/` が手元にある
+  - hunk のみ: `make train` のデータ生成部
+  - **節ペア込み**: `make section-pref-data`
+- さくら高火力 DOK と非公開レジストリ
+
+評価の本線は「人間編集が下書きに対し、意味を保ったまま構成・表現が良くなっているか」。
+段落結合・過剰分割・順序逆転（`deg-*`）を本線指標にしない（[HARD-EVAL.md](HARD-EVAL.md)）。
+
+## 手順1: build & push
+
+```bash
+make section-pref-data
+
+# ローカル検証
+make build-pref-sentseq-image          # → pref-sentseq:local
+
+# DOK 用 push
+export REGISTRY=（名前）.sakuracr.jp
+bash scripts/build_pref_sentseq_image.sh
+```
+
+イメージ例: `…/pref-sentseq:latest`
+同梱: `pref_dataset.jsonl`、`pref_split/train.jsonl`、`pref_split/valid.jsonl`
+
+## 手順2: DOK タスク
+
+| 項目 | 入れるもの |
+|------|------------|
+| イメージ | `（名前）.sakuracr.jp/pref-sentseq:latest` |
+| GPU | V100 以上推奨（ruri 埋め込み + Transformer 学習） |
+| コマンド | **空** |
+
+| 環境変数 | スモーク | 本番 LOPO | 本番 1 本学習 |
+|----------|----------|-----------|---------------|
+| `MODE` | `xproject` | `xproject` | `train` |
+| `ONLY_PROJECTS` | `ir-system`（1 fold） | 未設定 | 未設定 |
+| `EMBED_MODEL` | 未設定（ruri-v3-30m） | 同左 | 同左 |
+| `MAX_SEQ_LENGTH` | 未設定（256） | 未設定 | 未設定 |
+| `MAX_SENTS` | 未設定（128） | 未設定 | 未設定 |
+| `D_MODEL` | 未設定（256） | 未設定 | 未設定 |
+| `NUM_LAYERS` | 未設定（2） | 未設定 | 未設定 |
+| `BATCH_SIZE` | 未設定（64） | 未設定 | 未設定 |
+| `EPOCHS` | **`2`**（スモーク） | **`20`** | **`20`** |
+| `LR` | 未設定（1e-4） | 未設定 | 未設定 |
+
+- `MODE=xproject`: fold ごとに学習し直す LOPO。成果物は `eval_sentseq_xproject.json`
+- `MODE=train`: `pref_split` の train/valid で 1 本学習。成果物は `pref-sentseq/`（`model.pt` + `metrics.json`）
+
+fold は 13〜14 個。先に `ONLY_PROJECTS` で 1 fold、`EPOCHS=2` で時間見積もりしてから全 fold にする。
+
+## 手順3: 判定
+
+判定の本線は難試験 v1 / v2b / v2c（[HARD-EVAL.md](HARD-EVAL.md)）での pref-bt との比較である。
+これには 1 本学習した成果物が要るので、`MODE=train` を先に回してよい（実際その順で実施した）。
+「構成だけ」を分離した試験（structure_eval の層別セット、`deg-*` 並べ）は本線に使わない。
+
+LOPO（`MODE=xproject`）は「書籍をまたいだ汎化で pref-bt（micro 0.975）から退行していないか」の裏取りに使う。
+ただし LOPO の課題（下書き 対 人間編集）は簡単な多数派に引きずられる（下記「結果」参照）ため、これ単独で採否を決めない。
+
+## 結果（2026-07-25、MODE=train EPOCHS=20）
+
+学習時の指標（`outputs/pref-sentseq/metrics.json`）: train ペア正解率 0.826、valid ペア正解率 0.839。
+
+### 難試験での pref-bt との比較
+
+| 指標 | pref-bt | pref-sentseq |
+|------|--------:|-------------:|
+| v1: top-1 正解率（20項目） | 0.45 | **0.80** |
+| v1: 総当たり一致率（300組） | 0.830 | **0.877** |
+| v2b: 人間編集 > Fable 案の勝率（24項目） | 0.667 | 0.667 |
+| v2c: 人間編集 > composer 案の勝率（24項目） | 0.583 | **0.708** |
+| 機械案の相対位置の平均（0=コピー、1=人間） | Fable 1.01 / composer 1.53 | **Fable 0.59 / composer 0.42** |
+
+機械負例を一切使わずに、機械推敲案の過大評価が大きく減った。
+機械案の相対位置が 0〜1 の間（コピーと人間編集の間）に収まるのは、期待順位「人間 > 機械案 > コピー」と整合する初めてのモデルである。
+v2c の勝率 0.708 は、機械負例 456 件＋5 倍重みで再学習した pref-bt 変種（0.625）より高く、線形分離診断の上限（ペア正解率 0.71）とほぼ同じ水準。
+
+留意点: v1 でスコアと文字数の順位相関が 0.79 と高い（pref-bt は 0.50）。v2b/v2c では 0.22〜0.26 と低いので長さだけの説明はできないが、監視は要る。
+
+### valid ペア正解率の内訳（651 ペア、採点で実測）
+
+| 内訳 | pref-bt | pref-sentseq |
+|------|--------:|-------------:|
+| 全体（651） | 0.980 | 0.846 |
+| 単一段落ペア（623、96%） | 0.984 | 0.844 |
+| 複数段落ペア（28） | 0.893 | 0.893 |
+
+参考: 長さの特徴（文字数の差など）だけの分類器でも valid 全体で 0.745 当たる。
+
+読み方: pref-bt の 0.98 は、hunk 由来の単一段落ペア（文内の語句の書き換え）での成績が大半である。
+段落構成が関わる複数段落ペアでは両者は同点で、pref-sentseq の劣り分は文内の細部（ほぼ同じ 2 文の違いが文ベクトルの差に出にくい）に集中している。
+文の細部は pref-bt、並びと構成は pref-sentseq、と得意な水準が住み分けており、二軸併用の運用候補になる。
+
+LOPO 全 fold は未実施（fold ごとの埋め込み再計算を一括化する高速化は実装済み）。
+
+ローカル:
+
+```bash
+make eval-sentseq-xproject ONLY_PROJECTS=ir-system EPOCHS=2
+make eval-sentseq-xproject
+make train-sentseq
+make hard-eval-score INPUT=data/hard_eval/bases_v1_labeled.jsonl SCORER=sentseq MODEL=outputs/pref-sentseq
+```
+
+## 関連ファイル
+
+| パス | 役割 |
+|------|------|
+| `scripts/sentseq_utils.py` | 文分割（学習・推論共有） |
+| `scripts/train_pref_sentseq.py` | 学習（BT 損失、単発 train/valid） |
+| `scripts/eval_pref_sentseq_xproject.py` | LOPO 評価 |
+| `scripts/pref_sentseq_runtime.py` | 読み込み・採点 |
+| `scripts/dok_pref_sentseq.sh` | DOK 起動処理 |
+| `Dockerfile.pref-sentseq` | 箱 |
+| `scripts/build_pref_sentseq_image.sh` | ローカル build または REGISTRY 指定で push |
+
+## うまくいかないとき
+
+| 症状 | 見ること |
+|------|----------|
+| CUDA OOM | `BATCH_SIZE` を 32 → 16 に下げる |
+| ruri 初回ダウンロード失敗 | DOK のネットワーク / Hugging Face 到達性 |
+| `docker login` / push 失敗 | 非公開レジストリ認証 |

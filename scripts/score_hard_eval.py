@@ -7,6 +7,7 @@
 scorer:
   bt … outputs/pref-bt 系（CPU）
   ce … outputs/pref-ce 系（GPU 可、CPU でも可）
+  sentseq … outputs/pref-sentseq 系（GPU 可、CPU でも可）
 """
 from __future__ import annotations
 
@@ -106,6 +107,17 @@ def score_fn_ce(model_dir: Path):
   return score
 
 
+def score_fn_sentseq(model_dir: Path):
+  from pref_sentseq_runtime import load_sentseq_model, score_candidates_sentseq
+
+  loaded = load_sentseq_model(model_dir)
+
+  def score(base: str, texts: list[str]) -> list[float]:
+    return score_candidates_sentseq(loaded, base, texts)
+
+  return score
+
+
 def pairwise_agreement(human_rank: list[str], scores: dict[str, float]) -> tuple[int, int]:
   """Returns (agree, total) over pairs implied by human_rank (best-first)."""
   agree = 0
@@ -121,8 +133,8 @@ def pairwise_agreement(human_rank: list[str], scores: dict[str, float]) -> tuple
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--input", required=True, help="labeled hard-eval jsonl")
-  parser.add_argument("--scorer", choices=["bt", "ce"], required=True)
-  parser.add_argument("--model", required=True, help="pref-bt or pref-ce directory")
+  parser.add_argument("--scorer", choices=["bt", "ce", "sentseq"], required=True)
+  parser.add_argument("--model", required=True, help="pref-bt / pref-ce / pref-sentseq directory")
   parser.add_argument("--report", default="outputs/hard_eval_report.json")
   parser.add_argument("--include-pending", action="store_true", help="score pending too (no metrics)")
   args = parser.parse_args()
@@ -146,8 +158,10 @@ def main() -> None:
   model_dir = Path(args.model)
   if args.scorer == "bt":
     score = score_fn_bt(model_dir)
-  else:
+  elif args.scorer == "ce":
     score = score_fn_ce(model_dir)
+  else:
+    score = score_fn_sentseq(model_dir)
 
   per_item: list[dict] = []
   top1_hits = 0

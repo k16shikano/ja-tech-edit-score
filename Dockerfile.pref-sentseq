@@ -1,0 +1,31 @@
+# 高火力 DOK 向け: 文列 Transformer 報酬モデル（pref-sentseq）の学習・LOPO 評価
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements-pref-sentseq.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements-pref-sentseq.txt
+
+COPY scripts/train_pref_sentseq.py scripts/eval_pref_sentseq_xproject.py scripts/
+COPY scripts/sentseq_utils.py scripts/pref_static_utils.py scripts/
+COPY scripts/dok_pref_sentseq.sh /app/dok_pref_sentseq.sh
+RUN chmod +x /app/dok_pref_sentseq.sh
+
+# 選好データ（非公開原稿由来。非公開レジストリにのみ push）
+COPY data/pref_dataset.jsonl data/pref_dataset.jsonl
+COPY data/pref_split/train.jsonl data/pref_split/train.jsonl
+COPY data/pref_split/valid.jsonl data/pref_split/valid.jsonl
+
+ENV PYTHONUNBUFFERED=1
+ENV MODE=xproject
+ENV EMBED_MODEL=cl-nagoya/ruri-v3-30m
+ENV MAX_SEQ_LENGTH=256
+ENV MAX_SENTS=128
+ENV D_MODEL=256
+ENV NUM_LAYERS=2
+ENV BATCH_SIZE=64
+ENV EPOCHS=20
+ENV LR=1e-4
+
+ENTRYPOINT ["/bin/bash", "/app/dok_pref_sentseq.sh"]
