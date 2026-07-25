@@ -11,6 +11,9 @@
   - **節ペア込み**: `make section-pref-data`（hunk を `pref_dataset.hunk.jsonl` に退避してマージ）
 - さくら高火力 DOK と非公開レジストリ（原稿由来データをイメージに同梱するため公開レジストリ不可）
 
+評価の本線は「人間編集が下書きに対し、意味を保ったまま構成・表現が良くなっているか」。
+段落結合・過剰分割・順序逆転（`deg-*`）や、それを足した構成負例の学習投入は **今後やらない**（[HARD-EVAL.md](HARD-EVAL.md)）。
+
 ## 手順1: build & push
 
 ```bash
@@ -76,8 +79,8 @@ Hard Eval 比較（2026-07-18）:
 | v2b | **ml2048** | **0.42** | **0.792** | — | **10/24** |
 | v2b | BT | 0.67 | 0.833 | — | 16/24 |
 
-長文化で構成・微差とも改善するが、Top-1=0（構成改悪を human より上に置きがち）と
-fable 過大評価は残る。切り詰め除去だけでは足りない。
+長文化で v2/v2b の数値は動いたが、`deg-*` を本線指標にする方針は撤回した（上記）。
+以降の判定は人間編集 vs 下書き／他推敲案に戻す。
 
 - `MODE=xproject`: fold ごとにベースから学習し直す LOPO。成果物は `eval_ce_xproject.json`
 - `MODE=train`: `pref_split` の train/valid で 1 本学習。成果物は `pref-ce/`（HF モデル一式 + metrics）
@@ -111,7 +114,8 @@ make train-ce                                    # 1 本学習 → outputs/pref-
 | `scripts/pref_ce_runtime.py` | 読み込み・採点（採用時に rank から使う） |
 | `scripts/dok_pref_ce.sh` | DOK 起動処理 |
 | `Dockerfile.pref-ce` | 箱 |
-| `scripts/build_section_pref_pipeline.sh` | 節ペア → pref 化 → hunk とマージ → split |
+| `scripts/build_section_pref_pipeline.sh` | 節ペア → pref 化 → hunk とマージ → split（composition_neg があれば同梱） |
+| `scripts/build_composition_neg_pref.py` | 構成負例 MD → pref 行（edited≻base/deg-*） |
 | `scripts/build_pref_ce_image.sh` | ローカル build または REGISTRY 指定で push |
 | `scripts/build_push_pref_ce_image.sh` | `build_pref_ce_image.sh` へのエントリ（後方互換） |
 

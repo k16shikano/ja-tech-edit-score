@@ -18,6 +18,7 @@ PREF_MERGED="${PREF_MERGED:-$ROOT/data/pref_dataset.jsonl}"
 PREF_SPLIT="${PREF_SPLIT:-$ROOT/data/pref_split}"
 CURATE_REPORT="${CURATE_REPORT:-$ROOT/data/curate_section_report.json}"
 MAX_CHARS="${MAX_CHARS:-4000}"
+# composition_neg（deg-* 由来）は評価方針撤回につきマージしない。
 
 test -s "$SECTION_RAW" || {
   echo "missing $SECTION_RAW — run: make mine-sections" >&2

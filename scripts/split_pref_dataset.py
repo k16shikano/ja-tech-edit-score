@@ -31,6 +31,12 @@ def main() -> None:
     default="base_id",
     help="group key to keep related examples in the same split",
   )
+  parser.add_argument(
+    "--force-train-label",
+    action="append",
+    default=[],
+    help="meta.labels に含まれるラベルは常に train へ（複数指定可）",
+  )
   args = parser.parse_args()
 
   if args.train_ratio <= 0 or args.valid_ratio <= 0 or args.train_ratio + args.valid_ratio >= 1:
@@ -46,6 +52,7 @@ def main() -> None:
     "test": (out_dir / "test.jsonl").open("w", encoding="utf-8"),
   }
   counts = {"train": 0, "valid": 0, "test": 0}
+  forced = 0
 
   try:
     with in_path.open("r", encoding="utf-8") as src:
@@ -55,14 +62,19 @@ def main() -> None:
           continue
         rec = json.loads(line)
         meta = rec.get("meta", {})
-        if args.group_by == "base_id":
-          key = meta.get("base_id", rec["id"])
-        elif args.group_by == "source_reference":
-          key = meta.get("source_reference", rec["id"])
+        labels = set(meta.get("labels") or [])
+        if args.force_train_label and labels.intersection(args.force_train_label):
+          split = "train"
+          forced += 1
         else:
-          key = rec.get("source_text", rec["id"])
-        score = bucket_for_key(key)
-        split = choose_split(score, args.train_ratio, args.valid_ratio)
+          if args.group_by == "base_id":
+            key = meta.get("base_id", rec["id"])
+          elif args.group_by == "source_reference":
+            key = meta.get("source_reference", rec["id"])
+          else:
+            key = rec.get("source_text", rec["id"])
+          score = bucket_for_key(key)
+          split = choose_split(score, args.train_ratio, args.valid_ratio)
         out_files[split].write(json.dumps(rec, ensure_ascii=False) + "\n")
         counts[split] += 1
   finally:
@@ -71,6 +83,8 @@ def main() -> None:
 
   for split in ("train", "valid", "test"):
     print(f"{split}: {counts[split]}")
+  if forced:
+    print(f"force-train: {forced}")
 
 
 if __name__ == "__main__":
