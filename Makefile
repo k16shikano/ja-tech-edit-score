@@ -27,6 +27,16 @@ MAX_SEQ_LENGTH ?= 512
 BATCH_SIZE ?= 32
 
 REVISION_PAIRS := $(DATA_DIR)/revision_pairs.jsonl
+MACHINE_REVISIONS := $(DATA_DIR)/machine_revisions.jsonl
+MACHINE_NEG_PREF := $(DATA_DIR)/pref_dataset_machine_neg.jsonl
+MACHINE_NEG_MERGED := $(DATA_DIR)/pref_dataset_merged_machine_neg.jsonl
+MACHINE_NEG_SPLIT := $(DATA_DIR)/pref_split_machine_neg
+BT_MACHINE_NEG_OUTPUT_DIR := $(ROOT)outputs/pref-bt-machine-neg
+HARD_EVAL_V2B := $(DATA_DIR)/hard_eval/bases_v2b_human_fable_copy.jsonl
+HARD_EVAL_V1 := $(DATA_DIR)/hard_eval/bases_v1_labeled.jsonl
+V2C_COMPOSER_INPUT := $(DATA_DIR)/hard_eval/bases_v2c_composer_input.jsonl
+V2C_COMPOSER_REVISIONS := $(DATA_DIR)/hard_eval/bases_v2c_composer_revisions.jsonl
+HARD_EVAL_V2C := $(DATA_DIR)/hard_eval/bases_v2c_human_machine_copy.jsonl
 STEERING_MODEL ?=
 STEERING_DEVICE ?= cuda
 STEERING_LIMIT ?= 0
@@ -36,7 +46,17 @@ STEERING_MAX_LENGTH ?= 2048
 CE_OUTPUT_DIR := $(ROOT)outputs/pref-ce
 CE_BASE_MODEL ?= sbintuitions/modernbert-ja-130m
 
-.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data train train-bt train-ce eval-xproject eval-bt-xproject eval-ce-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image
+SENTSEQ_OUTPUT_DIR := $(ROOT)outputs/pref-sentseq
+SENTSEQ_EPOCHS ?= 20
+SENTSEQ_BATCH_SIZE ?= 64
+
+TRANSITION_DATA := $(DATA_DIR)/paragraph_transitions.jsonl
+TRANSITION_OUTPUT_DIR := $(ROOT)outputs/paragraph-transition
+
+STRUCTURE_PROFILE := $(DATA_DIR)/section_edit_profile.jsonl
+STRUCTURE_EVAL_DIR := $(ROOT)outputs/structure_eval
+
+.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-ce train-sentseq eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer
 
 help:
 	@echo "Targets:"
@@ -46,15 +66,19 @@ help:
 	@echo "  make data DIR=<repo> ORG=<base-branch> EDT=<edit-branch> [PROJECT_ID=...] [PATH=...]"
 	@echo "  make mine-sections  # 節単位ペア再採掘 → data/examples.section.raw.jsonl"
 	@echo "  make section-pref-data  # 節ペアを pref に載せ hunk とマージ → pref_split 更新"
+	@echo "  make composition-neg-pref  # （廃止）deg-* 由来。使わない"
 	@echo "  make build-pref-ce-image  # CE 再学習用 Docker イメージをローカル build"
+	@echo "  make build-pref-sentseq-image  # 文列 Transformer 用 Docker イメージをローカル build"
 	@echo "  make train         # pref-static（既定: ruri-v3-30m）"
 	@echo "  make train-bt      # Bradley-Terry 報酬モデル（絶対スコア）"
 	@echo "  make eval-xproject # leave-one-project-out（ペア分類）"
 	@echo "  make eval-bt-xproject # leave-one-project-out（BT 報酬）"
 	@echo "  make train-ce      # 段階2b: cross-encoder 報酬（GPU 推奨、DOK 可）"
+	@echo "  make train-sentseq # 文列 Transformer 報酬（GPU 推奨、DOK 可）"
 	@echo "  make eval-ce-xproject [ONLY_PROJECTS=a,b] # LOPO（cross-encoder、GPU）"
+	@echo "  make eval-sentseq-xproject [ONLY_PROJECTS=a,b] # LOPO（文列 Transformer、GPU）"
 	@echo "  make hard-eval-label  # Markdown の候補順を labeled JSONL に変換"
-	@echo "  make hard-eval-score INPUT=... SCORER=bt|ce MODEL=...  # 選抜難試験の採点"
+	@echo "  make hard-eval-score INPUT=... SCORER=bt|ce|sentseq MODEL=...  # 選抜難試験の採点"
 	@echo "  make check FILE=<path> [BASE=...] [EDIT=...] [FORMAT=markdown|text|json]  # 選好チェック"
 	@echo "  make compare SOURCE=... CANDIDATE_A=... CANDIDATE_B=..."
 	@echo "  make score-bt SOURCE=... CANDIDATE=...  # BT 絶対スコア"
@@ -64,8 +88,19 @@ help:
 	@echo "  make edit-sft MODEL=<hf-id> [LIMIT=0] [EPOCHS=2]  # 系統1フェーズ1: QLoRA SFT（GPU）"
 	@echo "  make edit-sft-score  # 系統1評価: DOK 生成結果を BT 採点（CPU）"
 	@echo "  make steering-pairs   # 系統3: draft/revised 対照ペア書き出し"
+	@echo "  make machine-revisions MODEL=composer-2.5 [LIMIT=0] [OFFSET=0]  # Cursor SDK で機械推敲案生成"
+	@echo "  make machine-neg-pref  # machine_revisions → pref_dataset_machine_neg.jsonl"
+	@echo "  make train-bt-machine-neg  # 既存 pref + machine_neg を別 split で pref-bt 学習"
+	@echo "  make eval-machine-neg    # v2b/v1 難試験で pref-bt-machine-neg を検証"
+	@echo "  make v2c-composer-gen    # v2b の下書きに composer 推敲案を生成（CURSOR_API_KEY 必須）"
+	@echo "  make eval-v2c-composer   # human/machine/copy 三点比較を新旧 pref-bt で採点・比較"
 	@echo "  make steering-extract MODEL=<hf-id> [DEVICE=cuda] [LIMIT=0] [STEERING_PROMPT_MODE=none|reading|norms]  # 層活性抽出（GPU）"
 	@echo "  make steering-probe MODEL=<hf-id> [VARIANT=reading|norms]  # LOPO 線形プローブ"
+	@echo "  make transition-data   # 段落遷移ペア抽出 → data/paragraph_transitions.jsonl"
+	@echo "  make train-transition  # 段落遷移モデル学習（LOPO）"
+	@echo "  make eval-transition   # held-out 節ペアで編集前後を採点"
+	@echo "  make structure-eval-data   # 節編集プロファイル + 層別 Hard Eval"
+	@echo "  make structure-eval-score  # 既存モデルで層別採点"
 	@echo "  make daemon        # keep model loaded (auto-started by check otherwise)"
 	@echo "  make daemon-stop"
 	@echo "  make clean-model   # remove outputs/pref-static (before retrain)"
@@ -125,8 +160,19 @@ hard-eval-v2-build:
 section-pref-data:
 	bash scripts/build_section_pref_pipeline.sh
 
+composition-neg-pref:
+	$(PYTHON) scripts/build_composition_neg_pref.py \
+	  --bases "$(ROOT)data/hard_eval/composition_neg_bases.md" \
+	  --edited "$(ROOT)data/hard_eval/composition_neg_edited.md" \
+	  --out "$(ROOT)data/pref_dataset_composition_neg.jsonl" \
+	  --merge-into "$(ROOT)data/pref_dataset.jsonl" \
+	  --split-dir "$(ROOT)data/pref_split"
+
 build-pref-ce-image:
 	bash scripts/build_pref_ce_image.sh
+
+build-pref-sentseq-image:
+	bash scripts/build_pref_sentseq_image.sh
 
 train: $(RAW)
 	@test -s "$(RAW)" || (echo "no training data: run make data first" && exit 1)
@@ -178,6 +224,23 @@ train-ce: $(PREF_SPLIT)/train.jsonl $(PREF_SPLIT)/valid.jsonl
 	  $(if $(CE_BATCH_SIZE),--batch-size $(CE_BATCH_SIZE),) \
 	  $(if $(CE_LR),--lr $(CE_LR),)
 
+train-sentseq: $(PREF_SPLIT)/train.jsonl $(PREF_SPLIT)/valid.jsonl
+	@test -s "$(PREF_SPLIT)/train.jsonl" || (echo "no split: run make train first" && exit 1)
+	$(PYTHON) scripts/train_pref_sentseq.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(PREF_SPLIT)/train.jsonl" \
+	  --eval-file "$(PREF_SPLIT)/valid.jsonl" \
+	  --output-dir "$(SENTSEQ_OUTPUT_DIR)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --epochs $(SENTSEQ_EPOCHS) \
+	  --batch-size $(SENTSEQ_BATCH_SIZE) \
+	  $(if $(SENTSEQ_DEVICE),--device $(SENTSEQ_DEVICE),) \
+	  $(if $(SENTSEQ_LR),--lr $(SENTSEQ_LR),) \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),)
+
 eval-ce-xproject: $(PREF)
 	@test -s "$(PREF)" || (echo "no pref dataset: run make train first" && exit 1)
 	$(PYTHON) scripts/eval_pref_ce_xproject.py \
@@ -188,6 +251,22 @@ eval-ce-xproject: $(PREF)
 	  $(if $(CE_LR),--lr $(CE_LR),) \
 	  $(if $(ONLY_PROJECTS),--only-projects "$(ONLY_PROJECTS)",) \
 	  --report "$(or $(REPORT),$(ROOT)outputs/eval_ce_xproject.json)"
+
+eval-sentseq-xproject: $(PREF)
+	@test -s "$(PREF)" || (echo "no pref dataset: run make train first" && exit 1)
+	$(PYTHON) scripts/eval_pref_sentseq_xproject.py \
+	  --input "$(PREF)" \
+	  --model "$(EMBED_MODEL)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --epochs $(or $(SENTSEQ_EPOCHS),20) \
+	  --batch-size $(or $(SENTSEQ_BATCH_SIZE),64) \
+	  $(if $(SENTSEQ_DEVICE),--device $(SENTSEQ_DEVICE),--device cuda,) \
+	  $(if $(SENTSEQ_LR),--lr $(SENTSEQ_LR),) \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),) \
+	  $(if $(ONLY_PROJECTS),--only-projects "$(ONLY_PROJECTS)",) \
+	  --report "$(or $(REPORT),$(ROOT)outputs/eval_sentseq_xproject.json)"
 
 eval-xproject: $(PREF)
 	@test -s "$(PREF)" || (echo "no pref dataset: run make train first" && exit 1)
@@ -291,8 +370,8 @@ hard-eval-label:
 
 hard-eval-score:
 	@test -n "$(INPUT)" || (echo "INPUT=data/hard_eval/labeled.jsonl is required" && exit 1)
-	@test -n "$(SCORER)" || (echo "SCORER=bt|ce is required" && exit 1)
-	@test -n "$(MODEL)" || (echo "MODEL=outputs/pref-bt or outputs/pref-ce is required" && exit 1)
+	@test -n "$(SCORER)" || (echo "SCORER=bt|ce|sentseq is required" && exit 1)
+	@test -n "$(MODEL)" || (echo "MODEL=outputs/pref-bt / pref-ce / pref-sentseq is required" && exit 1)
 	$(PYTHON) scripts/score_hard_eval.py \
 	  --input "$(INPUT)" \
 	  --scorer "$(SCORER)" \
@@ -305,6 +384,87 @@ steering-pairs: $(DPO_CURATED)
 	  --input "$(DPO_CURATED)" \
 	  --out "$(REVISION_PAIRS)" \
 	  $(if $(filter-out 0,$(STEERING_LIMIT)),--limit $(STEERING_LIMIT),)
+
+machine-revisions:
+	$(PYTHON) scripts/generate_machine_revisions.py \
+	  --input "$(REVISION_PAIRS)" \
+	  --out "$(MACHINE_REVISIONS)" \
+	  --model "$(or $(MODEL),composer-2.5)" \
+	  $(if $(filter-out 0,$(LIMIT)),--limit $(LIMIT),) \
+	  $(if $(filter-out 0,$(OFFSET)),--offset $(OFFSET),)
+
+machine-neg-pref:
+	@test -s "$(MACHINE_REVISIONS)" || (echo "missing $(MACHINE_REVISIONS): run make machine-revisions first" >&2; exit 1)
+	@test -s "$(REVISION_PAIRS)" || (echo "missing $(REVISION_PAIRS): run make steering-pairs first" >&2; exit 1)
+	$(PYTHON) scripts/build_machine_neg_pref.py \
+	  --revisions "$(MACHINE_REVISIONS)" \
+	  --pairs "$(REVISION_PAIRS)" \
+	  --out "$(MACHINE_NEG_PREF)"
+
+train-bt-machine-neg: $(MACHINE_NEG_PREF)
+	bash scripts/train_pref_bt_machine_neg.sh
+
+eval-machine-neg:
+	@test -d "$(BT_MACHINE_NEG_OUTPUT_DIR)" || (echo "missing $(BT_MACHINE_NEG_OUTPUT_DIR): run make train-bt-machine-neg" >&2; exit 1)
+	@test -s "$(HARD_EVAL_V2B)" || (echo "missing $(HARD_EVAL_V2B)" >&2; exit 1)
+	@test -s "$(HARD_EVAL_V1)" || (echo "missing $(HARD_EVAL_V1)" >&2; exit 1)
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(HARD_EVAL_V2B)" \
+	  --scorer bt \
+	  --model "$(BT_MACHINE_NEG_OUTPUT_DIR)" \
+	  --report "$(ROOT)outputs/hard_eval_v2b_report_bt_machine_neg.json"
+	$(PYTHON) scripts/analyze_hard_eval_margins.py \
+	  --report "$(ROOT)outputs/hard_eval_v2b_report_bt_machine_neg.json" \
+	  --out "$(ROOT)outputs/hard_eval_v2b_report_bt_machine_neg_margins.json"
+	$(PYTHON) scripts/compare_hard_eval_margin_reports.py \
+	  --baseline "$(ROOT)outputs/hard_eval_v2b_report_bt_margins.json" \
+	  --variant "$(ROOT)outputs/hard_eval_v2b_report_bt_machine_neg_margins.json" \
+	  --out "$(ROOT)outputs/hard_eval_v2b_margins_compare_machine_neg.md"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(HARD_EVAL_V1)" \
+	  --scorer bt \
+	  --model "$(BT_MACHINE_NEG_OUTPUT_DIR)" \
+	  --report "$(ROOT)outputs/hard_eval_v1_report_bt_machine_neg.json"
+
+$(V2C_COMPOSER_INPUT): $(HARD_EVAL_V2B)
+	$(PYTHON) scripts/build_hard_eval_v2c_composer.py --mode prepare \
+	  --v2b "$(HARD_EVAL_V2B)" \
+	  --input-out "$(V2C_COMPOSER_INPUT)"
+
+v2c-composer-gen: $(V2C_COMPOSER_INPUT)
+	$(PYTHON) scripts/generate_machine_revisions.py \
+	  --input "$(V2C_COMPOSER_INPUT)" \
+	  --out "$(V2C_COMPOSER_REVISIONS)" \
+	  --model "$(or $(MODEL),composer-2.5)"
+
+eval-v2c-composer:
+	@test -s "$(V2C_COMPOSER_REVISIONS)" || (echo "missing $(V2C_COMPOSER_REVISIONS): run make v2c-composer-gen first" >&2; exit 1)
+	$(PYTHON) scripts/build_hard_eval_v2c_composer.py --mode build \
+	  --v2b "$(HARD_EVAL_V2B)" \
+	  --revisions "$(V2C_COMPOSER_REVISIONS)" \
+	  --out "$(HARD_EVAL_V2C)"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(HARD_EVAL_V2C)" \
+	  --scorer bt \
+	  --model "$(ROOT)outputs/pref-bt" \
+	  --report "$(ROOT)outputs/hard_eval_v2c_report_bt.json"
+	$(PYTHON) scripts/analyze_hard_eval_margins.py \
+	  --report "$(ROOT)outputs/hard_eval_v2c_report_bt.json" \
+	  --mid machine \
+	  --out "$(ROOT)outputs/hard_eval_v2c_report_bt_margins.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(HARD_EVAL_V2C)" \
+	  --scorer bt \
+	  --model "$(BT_MACHINE_NEG_OUTPUT_DIR)" \
+	  --report "$(ROOT)outputs/hard_eval_v2c_report_bt_machine_neg.json"
+	$(PYTHON) scripts/analyze_hard_eval_margins.py \
+	  --report "$(ROOT)outputs/hard_eval_v2c_report_bt_machine_neg.json" \
+	  --mid machine \
+	  --out "$(ROOT)outputs/hard_eval_v2c_report_bt_machine_neg_margins.json"
+	$(PYTHON) scripts/compare_hard_eval_margin_reports.py \
+	  --baseline "$(ROOT)outputs/hard_eval_v2c_report_bt_margins.json" \
+	  --variant "$(ROOT)outputs/hard_eval_v2c_report_bt_machine_neg_margins.json" \
+	  --out "$(ROOT)outputs/hard_eval_v2c_margins_compare_machine_neg.md"
 
 steering-extract: $(REVISION_PAIRS)
 	@test -n "$(STEERING_MODEL)$(MODEL)" || (echo "MODEL=<hf-id> is required" && exit 1)
@@ -325,6 +485,114 @@ steering-probe:
 	  --model "$(or $(MODEL),$(STEERING_MODEL))" \
 	  $(if $(VARIANT),--variant "$(VARIANT)",) \
 	  --activations-dir "$(ROOT)outputs/steering"
+
+transition-data:
+	$(PYTHON) scripts/extract_paragraph_transitions.py \
+	  --manifest "$(ROOT)data/section_mining_manifest.json" \
+	  --out "$(TRANSITION_DATA)"
+
+train-transition: $(TRANSITION_DATA)
+	@test -s "$(TRANSITION_DATA)" || (echo "no transition data: run make transition-data first" && exit 1)
+	$(PYTHON) scripts/train_paragraph_transition.py \
+	  --input "$(TRANSITION_DATA)" \
+	  --output-dir "$(TRANSITION_OUTPUT_DIR)" \
+	  --model "$(EMBED_MODEL)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(MAX_SEQ_LENGTH) \
+	  --batch-size $(BATCH_SIZE)
+
+eval-transition: $(TRANSITION_OUTPUT_DIR)/model.joblib
+	@test -s "$(ROOT)data/examples.section.heldout.jsonl" || (echo "no held-out section pairs: run make mine-heldout-sections" && exit 1)
+	$(PYTHON) scripts/eval_transition_on_edits.py \
+	  --input "$(ROOT)data/examples.section.heldout.jsonl" \
+	  --model "$(TRANSITION_OUTPUT_DIR)/model.joblib" \
+	  --report "$(TRANSITION_OUTPUT_DIR)/eval_on_edits.json" \
+	  --markdown "$(TRANSITION_OUTPUT_DIR)/eval_on_edits.md" \
+	  --batch-size $(BATCH_SIZE)
+
+structure-eval-data:
+	@test -s "$(ROOT)data/examples.section.heldout.jsonl" || (echo "missing held-out section pairs" && exit 1)
+	@test -s "$(ROOT)data/examples.section.raw.jsonl" || (echo "missing section raw pairs" && exit 1)
+	$(PYTHON) scripts/align_section_edits.py \
+	  --inputs "$(ROOT)data/examples.section.heldout.jsonl" "$(ROOT)data/examples.section.raw.jsonl" \
+	  --out "$(STRUCTURE_PROFILE)" \
+	  --preview "$(DATA_DIR)/section_edit_profile_preview.md"
+	$(PYTHON) scripts/build_structure_eval.py \
+	  --input "$(STRUCTURE_PROFILE)" \
+	  --out-dir "$(DATA_DIR)/hard_eval" \
+	  --train-candidates "$(DATA_DIR)/structure_train_candidates.jsonl" \
+	  --tokenizer "$(ROOT)outputs/pref-ce-ml2048/model"
+
+structure-eval-score: structure-eval-data
+	@mkdir -p "$(STRUCTURE_EVAL_DIR)"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/structure_dominant.jsonl" \
+	  --scorer bt --model "$(BT_OUTPUT_DIR)" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-bt__structure_dominant.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/expression_dominant.jsonl" \
+	  --scorer bt --model "$(BT_OUTPUT_DIR)" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-bt__expression_dominant.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/mixed.jsonl" \
+	  --scorer bt --model "$(BT_OUTPUT_DIR)" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-bt__mixed.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/unclassified.jsonl" \
+	  --scorer bt --model "$(BT_OUTPUT_DIR)" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-bt__unclassified.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/structure_dominant.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-beyond-para" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-beyond-para__structure_dominant.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/expression_dominant.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-beyond-para" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-beyond-para__expression_dominant.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/mixed.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-beyond-para" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-beyond-para__mixed.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/structure_dominant.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-ml2048" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-ml2048__structure_dominant.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/expression_dominant.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-ml2048" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-ml2048__expression_dominant.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/mixed.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-ml2048" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-ml2048__mixed.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/structure_dominant.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-with-negative-construct-example" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-with-negative-construct-example__structure_dominant.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/expression_dominant.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-with-negative-construct-example" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-with-negative-construct-example__expression_dominant.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/mixed.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-with-negative-construct-example" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-with-negative-construct-example__mixed.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/unclassified.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-beyond-para" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-beyond-para__unclassified.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/unclassified.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-ml2048" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-ml2048__unclassified.json"
+	$(PYTHON) scripts/score_hard_eval.py \
+	  --input "$(DATA_DIR)/hard_eval/unclassified.jsonl" \
+	  --scorer ce --model "$(ROOT)outputs/pref-ce-with-negative-construct-example" \
+	  --report "$(STRUCTURE_EVAL_DIR)/pref-ce-with-negative-construct-example__unclassified.json"
+	$(PYTHON) scripts/summarize_structure_eval.py \
+	  --eval-dir "$(DATA_DIR)/hard_eval" \
+	  --report-dir "$(STRUCTURE_EVAL_DIR)" \
+	  --out "$(STRUCTURE_EVAL_DIR)/summary.md"
 
 clean-model:
 	rm -rf "$(OUTPUT_DIR)" "$(BT_OUTPUT_DIR)"

@@ -230,6 +230,8 @@ ja-tech-edit-score-converge \
 | pref（swap 増強） | 438 |
 | **マージ後 pref_dataset** | **12,548**（hunk 12,110 + section 438） |
 | train / valid / test | 9,984 / 1,302 / 1,262 |
+| +構成負例（`make composition-neg-pref`） | **撤回**。`deg-*` 評価・学習投入はしない |
+| マージ後 pref_dataset | **12,548**（構成負例なしに戻済み） |
 
 CE 再学習用イメージ: `make build-pref-ce-image` → `pref-ce:local`（6.3GB）。DOK push は `REGISTRY=... ./scripts/build_push_pref_ce_image.sh`。
 
@@ -289,8 +291,12 @@ kNN 実例注入（系統4）は過去に失敗しており、採用しない。
 | 3b | BT 報酬の cross-encoder 化（ModernBERT-ja） | 3a | GPU | **採用**（難試験で BT を上回る。Top-1 0.50 / ペア 0.837） |
 | 3c | 選抜難試験（LLM ベース＋人手） | 3a | CPU＋人手 | v1 実施済み（20項目）。拡充は継続（[HARD-EVAL.md](HARD-EVAL.md)） |
 | 3d | CE の運用組み込み（rank / converge） | 3b | CPU | 済み（meta.json で BT/CE 自動判別。rank の既定は pref-ce） |
-| 3e | 難試験 v2: 節（複数段落）単位の項目 | 3c | CPU＋人手 | 定義ラベル済み（human>deg-join>deg-split>base>deg-reverse）。採点比較へ |
-| 3f | 節単位ペアの再採掘と CE 再学習 | 3b | CPU＋GPU | **済み・採用**。節ペア込み CE（`pref-ce-beyond-para`）を本線に。構成識別力の実測は 3e（難試験 v2）へ。次: `MAX_LENGTH=2048` 再学習 |
+| 3e | 難試験 v2: 節（複数段落）単位の項目 | 3c | CPU＋人手 | **方針変更**。`deg-*`（結合・過剰分割・逆転）は評価対象から外す。目標は「人間編集が下書きに対し意味保持のまま構成・表現が良くなっているか」 |
+| 3f | 節単位ペアの再採掘と CE 再学習 | 3b | CPU＋GPU | **済み・採用**。節ペア込み CE（`pref-ce-beyond-para`）／長文化 `pref-ce-ml2048`。構成負例の学習投入・`deg-*` 採点は打ち切り |
+| 3g | 段落遷移モデル（完成稿の隣接対で学習） | — | CPU | **実施・否定的結果で終了**（2026-07-25）。隣接判別は LOPO AUC 0.829 だが、held-out 実編集で「編集後 > 下書き」の勝率 40〜44%（境界数を揃えても同様）。隣接性＝話題の連続性であり、編集による構成改善とは別軸。詳細 [PARAGRAPH-TRANSITION.md](PARAGRAPH-TRANSITION.md) |
+| 3h | 実編集の層別評価（構成支配ペアの測定器） | 3e | CPU | **実施**（2026-07-25）。信頼できる構成支配ペアは held-out 112節中9件のみ。「下書き vs 編集後」の2択は全層・全モデルで飽和（勝率100%）。点差は表現変化量に比例し、構成支配層で小さい。測定器の拡充は人手の構成限定編集が必要。詳細 [STRUCTURE-EVAL.md](STRUCTURE-EVAL.md) |
+| 3i | 機械推敲案の負例（人間編集 ≻ 機械案） | 3b | CPU＋SDK | **実施・限定的結果で拡大中止**（2026-07-25）。500件生成（検品通過456件）で pref-bt を再学習したが、三点比較の勝率は v2b（対 Fable 0.667）も v2c（対 composer 0.583）も不変。負例5倍重みで composer にのみ 0.583→0.625、v1 総当たり一致率は 0.830→0.810 と退行の兆候。線形分離診断（`scripts/probe_machine_neg_separability.py`）で ruri 埋め込み＋線形層の上限はペア正解率 0.71 と判明。残り5,500件への生成拡大は採らない |
+| 3j | 文列 Transformer（pref-sentseq） | 3a | GPU（DOK） | **1本学習済み・有望**（2026-07-25）。文単位の凍結 ruri ベクトル列＋段落開始埋め込みを2層 Transformer に読ませる。機械負例なしで v1 top-1 0.80（bt 0.45）、v2c 対 composer 勝率 0.708（bt 0.583）、機械案の相対位置が初めて「コピーと人間の間」に収まった。valid 単一段落は 0.844 と bt（0.984）に劣るが複数段落は同点 0.893 で、細部＝bt / 構成＝sentseq の住み分け。LOPO 全 fold は未実施。詳細 [DOK-PREF-SENTSEQ.md](DOK-PREF-SENTSEQ.md) |
 | 4 | Best-of-N と収束判定のループ実装 | 3a | CPU | 済み |
 | 5 | 要推敲検出器の採掘拡張 | 1 | CPU | 未着手 |
 | 6a | activation steering 読み取り（フェーズ A） | データ | GPU（短） | 計測済み（弱め）・B/C 見送り |
