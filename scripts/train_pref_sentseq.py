@@ -428,9 +428,11 @@ def train_sentseq_model(
 
   n = len(train_rows)
   best_valid_acc = -1.0
+  best_epoch = -1
   best_state: dict[str, torch.Tensor] | None = None
+  best_train_metrics: dict[str, float] = {}
+  best_valid_metrics: dict[str, float] = {}
   last_train_metrics: dict[str, float] = {}
-  last_valid_metrics: dict[str, float] = {}
 
   print(
     f"{log_prefix}train: pairs={n} device={device.type} embed_dim={embed_dim} "
@@ -486,7 +488,6 @@ def train_sentseq_model(
     valid_metrics = eval_sentseq_pairs(
       model, valid_rows, prepared, device=device, batch_size=cfg.batch_size
     )
-    last_valid_metrics = {f"valid_{k}": v for k, v in valid_metrics.items()}
     print(
       f"{log_prefix}epoch {epoch + 1}/{cfg.epochs} "
       f"train_loss={last_train_metrics['train_bt_loss']:.4f} "
@@ -496,12 +497,17 @@ def train_sentseq_model(
     )
     if valid_metrics["pair_accuracy"] > best_valid_acc:
       best_valid_acc = valid_metrics["pair_accuracy"]
+      best_epoch = epoch + 1
       best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+      best_train_metrics = dict(last_train_metrics)
+      best_valid_metrics = {f"valid_{k}": v for k, v in valid_metrics.items()}
 
   if best_state is not None:
     model.load_state_dict(best_state)
   model.eval()
-  return model, last_train_metrics, last_valid_metrics, prepared
+  print(f"{log_prefix}best epoch: {best_epoch}/{cfg.epochs} valid_acc={best_valid_acc:.4f}", flush=True)
+  best_train_metrics["best_epoch"] = float(best_epoch)
+  return model, best_train_metrics, best_valid_metrics, prepared
 
 
 @torch.no_grad()
@@ -668,6 +674,9 @@ def main() -> None:
     "max_sents": cfg.max_sents,
     "d_model": cfg.d_model,
     "num_layers": cfg.num_layers,
+    "epochs": cfg.epochs,
+    "lr": cfg.lr,
+    "batch_size": cfg.batch_size,
     "train_pairs": len(train_rows),
     "eval_pairs": len(eval_rows),
     **train_metrics,
