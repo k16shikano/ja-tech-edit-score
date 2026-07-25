@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Best-of-N: 報酬モデル（pref-bt / pref-ce 自動判別）で複数候補をランク付けし最良を選ぶ。"""
+"""Best-of-N: 報酬モデル（pref-bt / pref-ce / pref-sentseq 自動判別）で複数候補をランク付けし最良を選ぶ。
+
+二軸運用: --gate-model に pref-bt を渡すと、主モデル（推奨: pref-sentseq）の順位付けに加えて、
+「下書きに対する bt マージンが --gate-min-margin 未満の候補（細部が悪化した候補）」を失格にする。
+"""
 
 from __future__ import annotations
 
@@ -68,6 +72,16 @@ def main() -> None:
     default=None,
     help="source 自己スコアからの最小改善幅。未達なら reject",
   )
+  parser.add_argument(
+    "--gate-model",
+    help="細部悪化ゲート用モデル（推奨: pref-bt）。指定時は二軸運用",
+  )
+  parser.add_argument(
+    "--gate-min-margin",
+    type=float,
+    default=0.0,
+    help="ゲート: source に対するマージンがこれ未満の候補を失格にする",
+  )
   parser.add_argument("--format", choices=["text", "json", "markdown"], default="text")
   parser.add_argument("--batch-size", type=int, default=32)
   args = parser.parse_args()
@@ -86,6 +100,16 @@ def main() -> None:
     scorer.score(source, [source], batch_size=1)[0]
   )
 
+  gate = None
+  gate_scores: list[float] | None = None
+  gate_source_score = 0.0
+  if args.gate_model:
+    gate = load_scorer(Path(args.gate_model))
+    gate_scores = gate.score(source, texts, batch_size=args.batch_size)
+    gate_source_score = gate_scores[0] if args.include_source else float(
+      gate.score(source, [source], batch_size=1)[0]
+    )
+
   ranked = sorted(
     [
       {
@@ -95,6 +119,16 @@ def main() -> None:
         "score": scores[i],
         "margin_vs_source": scores[i] - source_score,
         "is_source": labels[i] == "__source__",
+        **(
+          {
+            "gate_margin": gate_scores[i] - gate_source_score,
+            # 下書き自身はゲート対象外（マージン0で常に通過）
+            "gate_passed": labels[i] == "__source__"
+            or gate_scores[i] - gate_source_score >= args.gate_min_margin,
+          }
+          if gate_scores is not None
+          else {}
+        ),
         "preview": texts[i].replace("\n", " ")[:120],
       }
       for i in range(len(texts))
@@ -104,15 +138,18 @@ def main() -> None:
   for i, row in enumerate(ranked, start=1):
     row["rank"] = i
 
-  best = ranked[0]
-  accepted = True
-  reject_reason = ""
-  if args.min_margin is not None and best["margin_vs_source"] < args.min_margin:
+  eligible = [r for r in ranked if r.get("gate_passed", True)]
+  best = eligible[0] if eligible else ranked[0]
+  accepted = bool(eligible)
+  reject_reason = "" if eligible else "all candidates failed the gate"
+  if accepted and args.min_margin is not None and best["margin_vs_source"] < args.min_margin:
     accepted = False
     reject_reason = f"margin_vs_source {best['margin_vs_source']:.4f} < min_margin {args.min_margin}"
 
   payload = {
     "scorer": scorer.kind,
+    "gate_scorer": gate.kind if gate else None,
+    "gate_min_margin": args.gate_min_margin if gate else None,
     "accepted": accepted,
     "reject_reason": reject_reason,
     "winner_label": best["label"] if accepted else None,
@@ -130,22 +167,36 @@ def main() -> None:
   if args.format == "markdown":
     status = "accepted" if accepted else "rejected"
     print(f"**Best-of-N**: {status}")
+    if gate:
+      print(f"- gate: `{gate.kind}` (min margin: `{args.gate_min_margin}`)")
     if accepted:
       print(f"- winner: `{best['label']}`")
       print(f"- score: `{best['score']:.4f}` (margin vs source: `{best['margin_vs_source']:.4f}`)")
     else:
       print(f"- reason: {reject_reason}")
     print("")
-    print("| rank | label | score | margin |")
-    print("|-----:|-------|------:|-------:|")
-    for row in ranked:
-      print(
-        f"| {row['rank']} | `{row['label']}` | {row['score']:.4f} | "
-        f"{row['margin_vs_source']:.4f} |"
-      )
+    if gate:
+      print("| rank | label | score | margin | gate |")
+      print("|-----:|-------|------:|-------:|------|")
+      for row in ranked:
+        mark = "pass" if row["gate_passed"] else "**fail**"
+        print(
+          f"| {row['rank']} | `{row['label']}` | {row['score']:.4f} | "
+          f"{row['margin_vs_source']:.4f} | {mark} ({row['gate_margin']:+.4f}) |"
+        )
+    else:
+      print("| rank | label | score | margin |")
+      print("|-----:|-------|------:|-------:|")
+      for row in ranked:
+        print(
+          f"| {row['rank']} | `{row['label']}` | {row['score']:.4f} | "
+          f"{row['margin_vs_source']:.4f} |"
+        )
     return
 
   print(f"accepted: {str(accepted).lower()}")
+  if gate:
+    print(f"gate: {gate.kind} (min_margin={args.gate_min_margin})")
   if accepted:
     print(f"winner: {best['label']}")
     print(f"score: {best['score']:.6f}")
@@ -155,10 +206,15 @@ def main() -> None:
   print(f"source_score: {source_score:.6f}")
   print("ranked:")
   for row in ranked:
-    mark = " *" if row["rank"] == 1 else ""
+    mark = " *" if accepted and row["index"] == best["index"] else ""
+    gate_note = ""
+    if gate:
+      gate_note = (
+        f" gate={'pass' if row['gate_passed'] else 'FAIL'}({row['gate_margin']:+.4f})"
+      )
     print(
       f"  {row['rank']}. {row['label']}: {row['score']:.6f} "
-      f"(margin={row['margin_vs_source']:.6f}){mark}"
+      f"(margin={row['margin_vs_source']:.6f}){gate_note}{mark}"
     )
 
 

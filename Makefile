@@ -82,7 +82,7 @@ help:
 	@echo "  make check FILE=<path> [BASE=...] [EDIT=...] [FORMAT=markdown|text|json]  # 選好チェック"
 	@echo "  make compare SOURCE=... CANDIDATE_A=... CANDIDATE_B=..."
 	@echo "  make score-bt SOURCE=... CANDIDATE=...  # BT 絶対スコア"
-	@echo "  make rank SOURCE=... CANDIDATE_FILES='a.txt b.txt'  # Best-of-N"
+	@echo "  make rank SOURCE=... CANDIDATE_FILES='a.txt b.txt'  # Best-of-N（既定: sentseq 主軸 + bt ゲートの二軸）"
 	@echo "  make converge CURRENT=... REVISED=... [MODE=pair|bt]  # 収束判定"
 	@echo "  make edit-sft-data  # 系統1フェーズ0: chat SFT データ書き出し"
 	@echo "  make edit-sft MODEL=<hf-id> [LIMIT=0] [EPOCHS=2]  # 系統1フェーズ1: QLoRA SFT（GPU）"
@@ -308,10 +308,14 @@ score-bt:
 	  --source-text "$(SOURCE)" \
 	  --candidate-text "$(CANDIDATE)"
 
-RANK_MODEL ?= $(if $(wildcard $(CE_OUTPUT_DIR)),$(CE_OUTPUT_DIR),$(BT_OUTPUT_DIR))
+# 二軸運用の既定: 主モデル=pref-sentseq（採用版）、ゲート=pref-bt（細部悪化の検出）
+# GATE_MODEL= （空）でゲートなしの一軸に戻せる
+SENTSEQ_BEST_DIR := $(ROOT)outputs/pref-sentseq-3e4
+RANK_MODEL ?= $(if $(wildcard $(SENTSEQ_BEST_DIR)),$(SENTSEQ_BEST_DIR),$(if $(wildcard $(CE_OUTPUT_DIR)),$(CE_OUTPUT_DIR),$(BT_OUTPUT_DIR)))
+GATE_MODEL ?= $(if $(and $(findstring pref-sentseq,$(RANK_MODEL)),$(wildcard $(BT_OUTPUT_DIR))),$(BT_OUTPUT_DIR),)
 
 rank:
-	@test -n "$(SOURCE)" || (echo "SOURCE is required (text or use SOURCE_FILE=)" && exit 1)
+	@test -n "$(SOURCE)$(SOURCE_FILE)" || (echo "SOURCE is required (text or use SOURCE_FILE=)" && exit 1)
 	@test -n "$(CANDIDATE_FILES)$(CANDIDATES_DIR)" || (echo "CANDIDATE_FILES or CANDIDATES_DIR is required" && exit 1)
 	$(PYTHON) scripts/rank_pref_bt.py \
 	  --model "$(RANK_MODEL)" \
@@ -319,6 +323,8 @@ rank:
 	  $(foreach f,$(CANDIDATE_FILES),--candidate-file "$(f)") \
 	  $(if $(CANDIDATES_DIR),--candidates-dir "$(CANDIDATES_DIR)",) \
 	  $(if $(MIN_MARGIN),--min-margin $(MIN_MARGIN),) \
+	  $(if $(GATE_MODEL),--gate-model "$(GATE_MODEL)",) \
+	  $(if $(GATE_MIN_MARGIN),--gate-min-margin $(GATE_MIN_MARGIN),) \
 	  --format $(or $(FORMAT),text)
 
 converge:
@@ -327,7 +333,7 @@ converge:
 	$(PYTHON) scripts/check_convergence.py \
 	  --mode $(or $(MODE),pair) \
 	  --static-model "$(OUTPUT_DIR)" \
-	  --bt-model "$(BT_OUTPUT_DIR)" \
+	  --bt-model "$(or $(BT_MODEL),$(BT_OUTPUT_DIR))" \
 	  $(if $(CURRENT_FILE),--current-file "$(CURRENT_FILE)",--current-text "$(CURRENT)") \
 	  $(if $(REVISED_FILE),--revised-file "$(REVISED_FILE)",--revised-text "$(REVISED)") \
 	  $(if $(SOURCE_FILE),--source-file "$(SOURCE_FILE)",$(if $(SOURCE),--source-text "$(SOURCE)",)) \

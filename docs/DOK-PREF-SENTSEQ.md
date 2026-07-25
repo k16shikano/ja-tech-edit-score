@@ -226,6 +226,19 @@ LOPO 全 fold は未実施（fold ごとの埋め込み再計算を一括化す�
 LOPO でも「細部＝bt、構成と機械案の格付け＝sentseq」の住み分けが崩れないことを確認した。
 次は二軸運用の実装（`make check` / Best-of-N への組み込み）。
 
+## 二軸運用の実装（2026-07-26）
+
+- 共通ローダ `scripts/pref_scorer.py` が pref-sentseq を自動判別する
+  （`model.pt` があれば sentseq、meta.json の kind が pref-ce なら cross-encoder、他は bt）。
+- **Best-of-N（`make rank`）が二軸の入口**。既定で主モデル= `outputs/pref-sentseq-3e4`、
+  ゲート= `outputs/pref-bt`。ゲートは「下書きに対する bt マージンが `GATE_MIN_MARGIN`
+  （既定 0）未満の候補＝細部が悪化した候補」を失格にし、残りから sentseq スコア最大を選ぶ。
+  `GATE_MODEL=`（空）で一軸に戻る。候補が1つでも合否判定として使える。
+- 収束判定（`make converge MODE=bt`）は `BT_MODEL=outputs/pref-sentseq-3e4` で sentseq に
+  差し替えられる。スコアのスケールがモデルごとに違うので `MIN_IMPROVEMENT` は合わせて選ぶ。
+- `make check`（hunk 単位の git diff 採点）は細部軸の道具なので pref-static / pref-bt のまま。
+  文書・節単位の二軸判定は rank / converge を使う。
+
 ## 実験の進め方（変数を1つずつ動かす）
 
 train 正解率 0.82 の壁の原因を切り分けるため、1 回の実験で動かす変数は 1 つにする。

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""報酬モデル（pref-bt / pref-ce）の自動判別ローダ。
+"""報酬モデル（pref-bt / pref-ce / pref-sentseq）の自動判別ローダ。
 
-model_dir の meta.json に kind: pref-ce があれば cross-encoder、
-無ければ従来の BT（凍結埋め込み + 線形ヘッド）として読む。
-どちらも score(source, candidates) -> list[float] の同じ形で返す。
+- meta.json に kind: pref-ce があれば cross-encoder
+- model.pt があれば文列 Transformer（pref-sentseq）
+- それ以外は従来の BT（凍結埋め込み + 線形ヘッド、model.joblib）
+どれも score(source, candidates) -> list[float] の同じ形で返す。
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from typing import Callable
 
 @dataclass
 class LoadedScorer:
-  kind: str  # "bt" | "ce"
+  kind: str  # "bt" | "ce" | "sentseq"
   model_dir: str
   score: Callable[..., list[float]]  # score(source, candidates, *, batch_size=...)
 
@@ -27,6 +28,8 @@ def detect_scorer_kind(model_dir: Path) -> str:
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     if meta.get("kind") == "pref-ce":
       return "ce"
+  if (model_dir / "model.pt").is_file():
+    return "sentseq"
   return "bt"
 
 
@@ -39,6 +42,14 @@ def load_scorer(model_dir: Path) -> LoadedScorer:
 
     def score(source: str, candidates: list[str], *, batch_size: int = 16) -> list[float]:
       return score_candidates_ce(loaded, source, candidates, batch_size=batch_size)
+
+  elif kind == "sentseq":
+    from pref_sentseq_runtime import load_sentseq_model, score_candidates_sentseq
+
+    loaded = load_sentseq_model(model_dir)
+
+    def score(source: str, candidates: list[str], *, batch_size: int = 16) -> list[float]:
+      return score_candidates_sentseq(loaded, source, candidates, batch_size=batch_size)
 
   else:
     from pref_bt_runtime import load_bt_model, score_candidates_bt
