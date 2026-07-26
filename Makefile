@@ -329,6 +329,7 @@ revise:
 	  $(if $(GEN_MODEL),--model "$(GEN_MODEL)",) \
 	  $(if $(ONLY_SECTIONS),--only-sections "$(ONLY_SECTIONS)",) \
 	  $(if $(MIN_SECTION_CHARS),--min-section-chars $(MIN_SECTION_CHARS),) \
+	  $(if $(SKILLS),--skills "$(SKILLS)",) \
 	  --primary-model "$(SENTSEQ_BEST_DIR)" \
 	  --gate-model "$(BT_OUTPUT_DIR)" \
 	  || { s=$$?; test $$s -eq 2 && echo "（閾値未達の節あり。詳細は上の一覧）" || exit $$s; }

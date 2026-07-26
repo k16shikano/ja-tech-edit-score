@@ -29,18 +29,47 @@ MAX_SENTS = 128  # pref-sentseq が読む文数の上限（それ以降は採点
 
 PROMPT_TEMPLATES = {
   "plain-v1": (
-    "次の日本語の技術文書の下書きを、意味を保ったまま推敲してください。"
+    "{norms}次の日本語の技術文書の下書きを、意味を保ったまま推敲してください。"
     "推敲後の本文だけを出力してください。前置きや説明は不要です。\n\n"
     "{draft}"
   ),
   "structure-v1": (
-    "次の日本語の技術文書の下書きを、意味を保ったまま推敲してください。"
+    "{norms}次の日本語の技術文書の下書きを、意味を保ったまま推敲してください。"
     "特に、段落の切り方と並び（一つの段落に一つの主張、主張の単位で切る、"
     "並びの論理的な必然性）を見直してください。"
     "推敲後の本文だけを出力してください。前置きや説明は不要です。\n\n"
     "{draft}"
   ),
 }
+
+DEFAULT_SKILLS = "japanese-tech-writing,cognitive-rhythm-writing"
+
+
+def strip_front_matter(text: str) -> str:
+  if text.startswith("---"):
+    parts = text.split("---", 2)
+    if len(parts) == 3:
+      return parts[2].lstrip()
+  return text
+
+
+def load_skill_norms(skill_names: str) -> str:
+  """カンマ区切りのスキル名から、プロンプトに前置する規範ブロックを作る。"""
+  names = [s.strip() for s in skill_names.split(",") if s.strip() and s.strip() != "none"]
+  if not names:
+    return ""
+  skills_root = Path(os.environ.get("CURSOR_SKILLS_DIR", "~/.cursor/skills")).expanduser()
+  blocks: list[str] = []
+  for name in names:
+    path = skills_root / name / "SKILL.md"
+    if not path.is_file():
+      raise SystemExit(f"skill not found: {path}")
+    blocks.append(strip_front_matter(path.read_text(encoding="utf-8")).strip())
+  joined = "\n\n---\n\n".join(blocks)
+  return (
+    "あなたは日本語技術書の編集者です。次の執筆規範に従って推敲します。\n\n"
+    "<規範>\n" + joined + "\n</規範>\n\n"
+  )
 
 
 def validate_revision(draft: str, text: str) -> str | None:
@@ -54,10 +83,12 @@ def validate_revision(draft: str, text: str) -> str | None:
   return None
 
 
-def generate_candidate(draft: str, *, prompt_tag: str, model: str, cwd: Path, api_key: str) -> str:
+def generate_candidate(
+  draft: str, *, prompt_tag: str, norms: str, model: str, cwd: Path, api_key: str
+) -> str:
   from cursor_sdk import Agent, AgentOptions, CursorAgentError, LocalAgentOptions
 
-  prompt = PROMPT_TEMPLATES[prompt_tag].format(draft=draft)
+  prompt = PROMPT_TEMPLATES[prompt_tag].format(norms=norms, draft=draft)
   try:
     result = Agent.prompt(
       prompt,
@@ -83,6 +114,7 @@ def revise_section(
   primary: LoadedScorer,
   gate: LoadedScorer,
   args: argparse.Namespace,
+  norms: str,
   root: Path,
   api_key: str,
 ) -> dict:
@@ -112,7 +144,9 @@ def revise_section(
     for k in range(args.n_candidates):
       tag = prompt_tags[k % len(prompt_tags)]
       started = time.perf_counter()
-      text = generate_candidate(current, prompt_tag=tag, model=args.model, cwd=root, api_key=api_key)
+      text = generate_candidate(
+        current, prompt_tag=tag, norms=norms, model=args.model, cwd=root, api_key=api_key
+      )
       elapsed = time.perf_counter() - started
       reject = validate_revision(current, text)
       row = {"iter": it, "prompt_tag": tag, "elapsed_s": round(elapsed, 1)}
@@ -193,6 +227,11 @@ def main() -> None:
     help="これより短い節は推敲せずそのまま通す",
   )
   parser.add_argument("--only-sections", default="", help="カンマ区切りの節見出し部分一致。指定節だけ処理")
+  parser.add_argument(
+    "--skills",
+    default=DEFAULT_SKILLS,
+    help="生成プロンプトに規範として同梱するスキル名（カンマ区切り、'none' で無効）",
+  )
   parser.add_argument("--primary-model", default="outputs/pref-sentseq-3e4")
   parser.add_argument("--gate-model", default="outputs/pref-bt")
   args = parser.parse_args()
@@ -234,10 +273,12 @@ def main() -> None:
       continue
     todo.append((label, body))
 
+  norms = load_skill_norms(args.skills)
   est_gen = len(todo) * args.n_candidates  # 1反復ぶんの生成数（反復すればさらに増える）
   print(
     f"節 {len(sections)} 件のうち {len(todo)} 件を処理（スキップ {passthrough}）。"
-    f"生成は最低 {est_gen} 回、最大 {est_gen * args.max_iters} 回",
+    f"生成は最低 {est_gen} 回、最大 {est_gen * args.max_iters} 回。"
+    f"規範: {args.skills if norms else 'なし'}",
     flush=True,
   )
 
@@ -253,6 +294,7 @@ def main() -> None:
       primary=primary,
       gate=gate,
       args=args,
+      norms=norms,
       root=root,
       api_key=api_key,
     )
@@ -268,6 +310,7 @@ def main() -> None:
     "file": str(draft_path),
     "out": str(out_path),
     "model": args.model,
+    "skills": args.skills if norms else "",
     "n_candidates": args.n_candidates,
     "max_iters": args.max_iters,
     "min_margin": args.min_margin,

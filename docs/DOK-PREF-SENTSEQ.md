@@ -280,6 +280,9 @@ make revise FILE=下書き.md [N=3] [MAX_ITERS=3] [MIN_MARGIN=1.9] [GEN_MODEL=co
   `ONLY_SECTIONS=見出しの部分一致` で節を絞れる。
 - 各反復で Cursor SDK により推敲案を N 件生成（プロンプトは素の推敲指示と、
   段落の切り方・並びの見直しを指示する2種を交互に使う）。
+- 生成プロンプトには既定で執筆規範スキル（`japanese-tech-writing` と
+  `cognitive-rhythm-writing`、`~/.cursor/skills` から読み込み、計約1.4万字）を
+  規範として同梱する。`SKILLS=none` で無効化、`SKILLS=名前,名前` で差し替え。
 - pref-sentseq のマージン（**元の節基準**）で順位付けし、pref-bt の
   マージンが `GATE_MIN_MARGIN`（既定 0）未満の案は失格。
 - 節ごとの終了条件は4つ: 合格（マージン ≥ `MIN_MARGIN`、既定 1.9 = 人間編集の中央値）、
