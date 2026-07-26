@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from pathlib import Path
 
 
@@ -57,13 +58,22 @@ def main() -> None:
   parser.add_argument("--train", default="data/pref_split/train.jsonl")
   parser.add_argument("--valid", default="data/pref_split/valid.jsonl")
   parser.add_argument("--out-dir", default="data/pref_split_anchor")
+  parser.add_argument("--train-name", default="train.jsonl", help="出力する train ファイル名")
+  parser.add_argument(
+    "--anchor-fraction",
+    type=float,
+    default=1.0,
+    help="アンカーを付ける実ペアの割合（0-1）。同じペアの fwd/rev は常にセット",
+  )
+  parser.add_argument("--seed", type=int, default=0)
   args = parser.parse_args()
 
   out_dir = Path(args.out_dir)
   out_dir.mkdir(parents=True, exist_ok=True)
+  rng = random.Random(args.seed)
 
   n_orig = n_anchor = 0
-  with (out_dir / "train.jsonl").open("w", encoding="utf-8") as dst:
+  with (out_dir / args.train_name).open("w", encoding="utf-8") as dst:
     for line in Path(args.train).open(encoding="utf-8"):
       line = line.strip()
       if not line:
@@ -71,14 +81,17 @@ def main() -> None:
       row = json.loads(line)
       dst.write(json.dumps(row, ensure_ascii=False) + "\n")
       n_orig += 1
-      for extra in anchor_rows(row):
+      extras = anchor_rows(row)
+      if extras and rng.random() >= args.anchor_fraction:
+        continue
+      for extra in extras:
         dst.write(json.dumps(extra, ensure_ascii=False) + "\n")
         n_anchor += 1
 
   valid_text = Path(args.valid).read_text(encoding="utf-8")
   (out_dir / "valid.jsonl").write_text(valid_text, encoding="utf-8")
 
-  print(f"train: original={n_orig} anchor={n_anchor} -> {out_dir / 'train.jsonl'}")
+  print(f"train: original={n_orig} anchor={n_anchor} -> {out_dir / args.train_name}")
   print(f"valid: copied unchanged -> {out_dir / 'valid.jsonl'}")
 
 
