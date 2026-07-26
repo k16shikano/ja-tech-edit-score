@@ -265,6 +265,24 @@ LOPO でも「細部＝bt、構成と機械案の格付け＝sentseq」の住み
   閾値は「品質」だけでなく「変化量」も要求してしまうので、
   軽微な推敲しか要らない節では p25 側を使う。
 
+## 推敲ループの 1 コマンド化（2026-07-26）
+
+生成 → 二軸判定 → 反復 → 打ち切りを `make revise` で回せる（`scripts/revise_loop.py`）。
+
+```bash
+export CURSOR_API_KEY=...
+make revise FILE=下書き.md [N=3] [MAX_ITERS=3] [MIN_MARGIN=1.9] [GEN_MODEL=composer-2.5]
+```
+
+- 各反復で Cursor SDK により推敲案を N 件生成（プロンプトは素の推敲指示と、
+  段落の切り方・並びの見直しを指示する2種を交互に使う）。
+- pref-sentseq のマージン（**元の下書き基準**）で順位付けし、pref-bt の
+  マージンが `GATE_MIN_MARGIN`（既定 0）未満の案は失格。
+- 終了条件は4つ: 合格（マージン ≥ `MIN_MARGIN`、既定 1.9 = 人間編集の中央値）、
+  改善停止（1反復の伸びが 0.1 未満）、全候補失格、反復上限。
+- 最良版は `<file>.revised.md`、経過は `<file>.revise-report.json` に出る。
+  不合格終了は exit code 2。
+
 ## 実験の進め方（変数を1つずつ動かす）
 
 train 正解率 0.82 の壁の原因を切り分けるため、1 回の実験で動かす変数は 1 つにする。
