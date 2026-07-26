@@ -24,6 +24,7 @@ import sys
 import threading
 import time
 from collections import defaultdict, deque
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,39 +57,68 @@ MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "8000"))
 SENTSEQ_MAX_SENTS = 128
 GITHUB_REPO_URL = "https://github.com/k16shikano/ja-tech-edit-score"
 
-app = FastAPI(title="ja-tech-edit-score")
-
 _scorers: dict[str, LoadedScorer] = {}
 _calibration: dict = {}
 _rate_lock = threading.Lock()
 _rate_hits: dict[str, deque[float]] = defaultdict(deque)
+_ready = threading.Event()
+_load_error: str | None = None
+_load_started_at: float | None = None
 
 
 def _load_models() -> None:
-  primary_dir = Path(os.environ.get("PRIMARY_MODEL", str(DEFAULT_PRIMARY)))
-  gate_dir = Path(os.environ.get("GATE_MODEL", str(DEFAULT_GATE)))
-  print(f"loading primary: {primary_dir}", flush=True)
-  _scorers["primary"] = load_scorer(primary_dir)
-  print(f"loading gate: {gate_dir}", flush=True)
-  _scorers["gate"] = load_scorer(gate_dir)
-  direction_spec = os.environ.get("DIRECTION_MODEL", str(DEFAULT_DIRECTION))
-  if direction_spec and direction_spec != "none":
-    print(f"loading direction: {direction_spec}", flush=True)
-    _scorers["direction"] = load_scorer(Path(direction_spec))
-  calibration_path = Path(os.environ.get("CALIBRATION_PATH", str(DEFAULT_CALIBRATION)))
-  if calibration_path.is_file():
-    _calibration.update(json.loads(calibration_path.read_text(encoding="utf-8")))
-  print("ready", flush=True)
+  global _load_error
+  try:
+    primary_dir = Path(os.environ.get("PRIMARY_MODEL", str(DEFAULT_PRIMARY)))
+    gate_dir = Path(os.environ.get("GATE_MODEL", str(DEFAULT_GATE)))
+    print(f"loading primary: {primary_dir}", flush=True)
+    _scorers["primary"] = load_scorer(primary_dir)
+    print(f"loading gate: {gate_dir}", flush=True)
+    _scorers["gate"] = load_scorer(gate_dir)
+    direction_spec = os.environ.get("DIRECTION_MODEL", str(DEFAULT_DIRECTION))
+    if direction_spec and direction_spec != "none":
+      print(f"loading direction: {direction_spec}", flush=True)
+      _scorers["direction"] = load_scorer(Path(direction_spec))
+    calibration_path = Path(os.environ.get("CALIBRATION_PATH", str(DEFAULT_CALIBRATION)))
+    if calibration_path.is_file():
+      _calibration.update(json.loads(calibration_path.read_text(encoding="utf-8")))
+    _load_error = None
+    _ready.set()
+    print("ready", flush=True)
+  except Exception as exc:  # noqa: BLE001 — 起動失敗をヘルスに載せる
+    _load_error = f"{type(exc).__name__}: {exc}"
+    print(f"model load failed: {_load_error}", flush=True)
 
 
-@app.on_event("startup")
-def startup() -> None:
-  _load_models()
+def _start_model_load() -> None:
+  global _load_started_at
+  _load_started_at = time.time()
+  thread = threading.Thread(target=_load_models, name="load-models", daemon=True)
+  thread.start()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+  # Fly はポートが開くまで約 8 秒しか待たない。モデル読込（数十秒）の前に bind する。
+  _start_model_load()
+  yield
+
+
+app = FastAPI(title="ja-tech-edit-score", lifespan=lifespan)
 
 
 class ScoreRequest(BaseModel):
   draft: str = Field(default="", max_length=MAX_TEXT_CHARS)
   revision: str = Field(default="", max_length=MAX_TEXT_CHARS)
+
+
+def require_ready() -> None:
+  if _ready.is_set():
+    return
+  detail = "モデルを読み込み中です。数十秒待ってから再度お試しください。"
+  if _load_error:
+    detail = f"モデルの読み込みに失敗しました: {_load_error}"
+  raise HTTPException(status_code=503, detail=detail)
 
 
 def client_ip(request: Request) -> str:
@@ -204,21 +234,24 @@ def index() -> FileResponse:
   return FileResponse(INDEX_HTML)
 
 
+@app.get("/healthz")
+def healthz() -> dict:
+  """ポート生存確認用。モデル読込前でも 200 を返す（Fly の待ち時間対策）。"""
+  return {
+    "ok": True,
+    "ready": _ready.is_set(),
+    "error": _load_error,
+  }
+
+
 @app.get("/api/meta")
 def meta(request: Request) -> dict:
   result = {
-    "primary": {
-      "scorer": _scorers["primary"].kind,
-      "model_dir": _scorers["primary"].model_dir,
-      "min_margin": DEFAULT_MIN_MARGIN,
-      "calibration": _calibration.get("primary"),
-    },
-    "gate": {
-      "scorer": _scorers["gate"].kind,
-      "model_dir": _scorers["gate"].model_dir,
-      "min_margin": DEFAULT_GATE_MIN_MARGIN,
-      "calibration": _calibration.get("gate"),
-    },
+    "ready": _ready.is_set(),
+    "load_error": _load_error,
+    "load_elapsed_seconds": (
+      None if _load_started_at is None else round(time.time() - _load_started_at, 1)
+    ),
     "notices": {
       "do_not_swap": (
         "このモデルでは「悪化したか」を評価できない。"
@@ -236,6 +269,20 @@ def meta(request: Request) -> dict:
     },
     "rate_limit": rate_limit_status(client_ip(request), consume=False),
   }
+  if not _ready.is_set():
+    return result
+  result["primary"] = {
+    "scorer": _scorers["primary"].kind,
+    "model_dir": _scorers["primary"].model_dir,
+    "min_margin": DEFAULT_MIN_MARGIN,
+    "calibration": _calibration.get("primary"),
+  }
+  result["gate"] = {
+    "scorer": _scorers["gate"].kind,
+    "model_dir": _scorers["gate"].model_dir,
+    "min_margin": DEFAULT_GATE_MIN_MARGIN,
+    "calibration": _calibration.get("gate"),
+  }
   if "direction" in _scorers:
     result["direction"] = {
       "scorer": _scorers["direction"].kind,
@@ -246,6 +293,7 @@ def meta(request: Request) -> dict:
 
 @app.post("/api/score")
 def score(req: ScoreRequest, request: Request):
+  require_ready()
   draft = req.draft.strip()
   revision = req.revision.strip()
   if not draft or not revision:

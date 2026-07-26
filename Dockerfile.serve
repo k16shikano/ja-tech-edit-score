@@ -47,8 +47,10 @@ COPY outputs/pref-bt/model.joblib outputs/pref-bt/metrics.json outputs/pref-bt/
 COPY outputs/pref-sentseq-anchor-2stage-v2/model.pt outputs/pref-sentseq-anchor-2stage-v2/metrics.json outputs/pref-sentseq-anchor-2stage-v2/
 COPY outputs/acceptance_margin_calibration.json outputs/acceptance_margin_calibration.json
 
-# コールドスタート短縮のため ruri をビルド時に取得
+# コールドスタート短縮のため ruri をビルド時に取得し、以降はオフラインにする
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('cl-nagoya/ruri-v3-30m')"
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
 
 EXPOSE 8080
 CMD ["sh", "-c", "python scripts/score_server.py --host 0.0.0.0 --port ${PORT:-8080}"]

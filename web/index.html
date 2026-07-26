@@ -292,10 +292,24 @@ async function loadMeta() {
     const res = await fetch("/api/meta");
     if (!res.ok) throw new Error(res.statusText);
     const data = await res.json();
+    if (!data.ready) {
+      const elapsed = data.load_elapsed_seconds != null
+        ? `（${data.load_elapsed_seconds} 秒経過）`
+        : "";
+      $("quota").textContent =
+        data.load_error
+          ? `モデルの読み込みに失敗しました: ${data.load_error}`
+          : `モデルを読み込み中です${elapsed}。完了するまでお待ちください。`;
+      $("run").disabled = true;
+      setTimeout(loadMeta, 2000);
+      return;
+    }
     rateLimit = data.rate_limit || null;
     renderQuota(rateLimit);
   } catch (e) {
-    $("quota").textContent = "試行回数の制限情報を取得できませんでした。";
+    $("quota").textContent = "試行回数の制限情報を取得できませんでした。再試行します…";
+    $("run").disabled = true;
+    setTimeout(loadMeta, 3000);
   }
 }
 

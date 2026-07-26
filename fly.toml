@@ -21,7 +21,8 @@ primary_region = 'nrt'
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
+  # コールドスタートでモデル読込に数十秒かかる。常時1台残すと初回502を避けやすい。
+  min_machines_running = 1
   processes = ['app']
 
   [http_service.concurrency]
@@ -30,11 +31,11 @@ primary_region = 'nrt'
     soft_limit = 5
 
   [[http_service.checks]]
-    interval = '30s'
-    timeout = '10s'
-    grace_period = '120s'
+    interval = '15s'
+    timeout = '5s'
+    grace_period = '180s'
     method = 'GET'
-    path = '/api/meta'
+    path = '/healthz'
 
 [[vm]]
   size = 'shared-cpu-2x'
