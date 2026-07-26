@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """生成 → 二軸判定 → 反復の推敲ループを 1 コマンドで回す。
 
-各反復で、現版から Cursor SDK で推敲案を複数生成し、
-pref-sentseq のスコアで順位付け、pref-bt をゲート（元の下書きに対して
+入力ファイルを見出し単位の節に分割し、節ごとにループを回して全体を組み直す。
+採点モデル（pref-sentseq / pref-bt）の学習データが節単位なので、これが正しい粒度である。
+
+各反復で、節の現版から Cursor SDK で推敲案を複数生成し、
+pref-sentseq のスコアで順位付け、pref-bt をゲート（元の節に対して
 細部が悪化した案を失格）として最良案を選ぶ。
 
-マージンはすべて「元の下書き」を基準に測る。合格ライン（--min-margin）は
+マージンはすべて「元の節」を基準に測る。合格ライン（--min-margin）は
 `make calibrate-margins` の人間編集マージン分布（中央値 1.9、p25 0.1）を根拠に選ぶ。
-合格するか、改善が止まるか、反復上限に達したら終了し、最良版をファイルに書き出す。
+合格するか、改善が止まるか、反復上限に達したら次の節へ移る。
 """
 from __future__ import annotations
 
@@ -18,7 +21,8 @@ import sys
 import time
 from pathlib import Path
 
-from pref_scorer import load_scorer
+from markdown_sections import split_sections
+from pref_scorer import LoadedScorer, load_scorer
 from sentseq_utils import split_document_sentences
 
 MAX_SENTS = 128  # pref-sentseq が読む文数の上限（それ以降は採点に反映されない）
@@ -72,58 +76,30 @@ def generate_candidate(draft: str, *, prompt_tag: str, model: str, cwd: Path, ap
   return str(result.result or "").strip()
 
 
-def main() -> None:
-  parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument("--file", required=True, help="下書きファイル（1節ぶんを推奨）")
-  parser.add_argument("--out", help="最良版の出力先（既定: <file>.revised.md）")
-  parser.add_argument("--report", help="経過 JSON の出力先（既定: <file>.revise-report.json）")
-  parser.add_argument("--model", default="composer-2.5", help="Cursor agent model id")
-  parser.add_argument("--n-candidates", type=int, default=3, help="1反復あたりの生成数")
-  parser.add_argument("--max-iters", type=int, default=3, help="反復上限")
-  parser.add_argument("--min-margin", type=float, default=1.9, help="合格ライン（sentseq、元下書き基準）")
-  parser.add_argument("--gate-min-margin", type=float, default=0.0, help="btゲート（元下書き基準）")
-  parser.add_argument(
-    "--min-iter-gain",
-    type=float,
-    default=0.1,
-    help="1反復の改善幅がこれ未満なら『改善が止まった』として打ち切る",
-  )
-  parser.add_argument("--primary-model", default="outputs/pref-sentseq-3e4")
-  parser.add_argument("--gate-model", default="outputs/pref-bt")
-  args = parser.parse_args()
+def revise_section(
+  section_label: str,
+  source: str,
+  *,
+  primary: LoadedScorer,
+  gate: LoadedScorer,
+  args: argparse.Namespace,
+  root: Path,
+  api_key: str,
+) -> dict:
+  """1節ぶんのループ。best テキストと経過を返す。"""
 
-  api_key = os.environ.get("CURSOR_API_KEY", "").strip()
-  if not api_key:
-    raise SystemExit("CURSOR_API_KEY is not set")
-
-  root = Path(__file__).resolve().parents[1]
-  draft_path = Path(args.file).expanduser().resolve()
-  source = draft_path.read_text(encoding="utf-8")
-  out_path = Path(args.out).expanduser() if args.out else draft_path.with_suffix(draft_path.suffix + ".revised.md")
-  report_path = (
-    Path(args.report).expanduser()
-    if args.report
-    else draft_path.with_suffix(draft_path.suffix + ".revise-report.json")
-  )
+  def margins(text: str) -> tuple[float, float]:
+    p = primary.score(source, [text, source], batch_size=4)
+    g = gate.score(source, [text, source], batch_size=4)
+    return float(p[0] - p[1]), float(g[0] - g[1])
 
   n_sents = len(split_document_sentences(source))
   if n_sents > MAX_SENTS:
     print(
-      f"警告: 下書きが {n_sents} 文あり、採点は先頭 {MAX_SENTS} 文"
-      f"（ゲートは先頭約512トークン）しか見ない。生成は全文に及ぶため、"
-      f"それ以降の変更は判定に反映されない。節（見出し単位）に分けての実行を推奨",
+      f"  警告: 節が {n_sents} 文あり、採点は先頭 {MAX_SENTS} 文しか見ない",
       file=sys.stderr,
       flush=True,
     )
-
-  primary = load_scorer(Path(args.primary_model))
-  gate = load_scorer(Path(args.gate_model))
-
-  def margins(text: str) -> tuple[float, float]:
-    """元の下書きを基準にした (sentseq マージン, bt マージン)。"""
-    p = primary.score(source, [text, source], batch_size=4)
-    g = gate.score(source, [text, source], batch_size=4)
-    return float(p[0] - p[1]), float(g[0] - g[1])
 
   prompt_tags = list(PROMPT_TEMPLATES)
   current = source
@@ -142,7 +118,7 @@ def main() -> None:
       row = {"iter": it, "prompt_tag": tag, "elapsed_s": round(elapsed, 1)}
       if reject:
         row.update({"status": "rejected", "reject_reason": reject})
-        print(f"[iter {it}] cand {k + 1}/{args.n_candidates} ({tag}): rejected ({reject})", flush=True)
+        print(f"  [iter {it}] cand {k + 1}/{args.n_candidates} ({tag}): rejected ({reject})", flush=True)
       else:
         m_primary, m_gate = margins(text)
         row.update(
@@ -156,7 +132,7 @@ def main() -> None:
           }
         )
         print(
-          f"[iter {it}] cand {k + 1}/{args.n_candidates} ({tag}): "
+          f"  [iter {it}] cand {k + 1}/{args.n_candidates} ({tag}): "
           f"margin={m_primary:+.2f} gate={'pass' if row['gate_passed'] else 'FAIL'}({m_gate:+.2f}) "
           f"({elapsed:.0f}s)",
           flush=True,
@@ -166,51 +142,152 @@ def main() -> None:
 
     eligible = [r for r in iter_rows if r.get("status") == "scored" and r["gate_passed"]]
     if not eligible:
-      print(f"[iter {it}] 全候補がゲート不合格または生成失敗。現版を維持して終了", flush=True)
+      print("  全候補がゲート不合格または生成失敗。現版を維持", flush=True)
       status = "no_eligible_candidate"
       break
     best = max(eligible, key=lambda r: r["margin_primary"])
     gain = best["margin_primary"] - current_margin
     if gain < args.min_iter_gain:
-      print(
-        f"[iter {it}] 改善幅 {gain:+.2f} < {args.min_iter_gain}。改善が止まったと判定して終了",
-        flush=True,
-      )
+      print(f"  [iter {it}] 改善幅 {gain:+.2f} < {args.min_iter_gain}。改善停止と判定", flush=True)
       status = "converged"
       break
 
     current = best["text"]
     current_margin = best["margin_primary"]
-    print(f"[iter {it}] 現版を更新: margin={current_margin:+.2f}（元下書き基準）", flush=True)
+    print(f"  [iter {it}] 現版を更新: margin={current_margin:+.2f}（元の節基準）", flush=True)
     if current_margin >= args.min_margin:
       status = "accepted"
       break
 
-  accepted = current_margin >= args.min_margin
-  out_path.write_text(current, encoding="utf-8")
+  return {
+    "section": section_label,
+    "status": status,
+    "accepted": current_margin >= args.min_margin,
+    "final_margin_primary": round(current_margin, 4),
+    "chars": len(current),
+    "text": current,
+    "trail": [{k: v for k, v in row.items() if k != "text"} for row in trail],
+  }
+
+
+def main() -> None:
+  parser = argparse.ArgumentParser(description=__doc__)
+  parser.add_argument("--file", required=True, help="下書きファイル（見出し単位の節に分割して処理する）")
+  parser.add_argument("--out", help="推敲版の出力先（既定: <file>.revised.md）")
+  parser.add_argument("--report", help="経過 JSON の出力先（既定: <file>.revise-report.json）")
+  parser.add_argument("--model", default="composer-2.5", help="Cursor agent model id")
+  parser.add_argument("--n-candidates", type=int, default=3, help="1反復あたりの生成数")
+  parser.add_argument("--max-iters", type=int, default=3, help="節ごとの反復上限")
+  parser.add_argument("--min-margin", type=float, default=1.9, help="合格ライン（sentseq、元の節基準）")
+  parser.add_argument("--gate-min-margin", type=float, default=0.0, help="btゲート（元の節基準）")
+  parser.add_argument(
+    "--min-iter-gain",
+    type=float,
+    default=0.1,
+    help="1反復の改善幅がこれ未満なら『改善が止まった』として次の節へ",
+  )
+  parser.add_argument(
+    "--min-section-chars",
+    type=int,
+    default=200,
+    help="これより短い節は推敲せずそのまま通す",
+  )
+  parser.add_argument("--only-sections", default="", help="カンマ区切りの節見出し部分一致。指定節だけ処理")
+  parser.add_argument("--primary-model", default="outputs/pref-sentseq-3e4")
+  parser.add_argument("--gate-model", default="outputs/pref-bt")
+  args = parser.parse_args()
+
+  api_key = os.environ.get("CURSOR_API_KEY", "").strip()
+  if not api_key:
+    raise SystemExit("CURSOR_API_KEY is not set")
+
+  root = Path(__file__).resolve().parents[1]
+  draft_path = Path(args.file).expanduser().resolve()
+  full_text = draft_path.read_text(encoding="utf-8")
+  out_path = Path(args.out).expanduser() if args.out else draft_path.with_suffix(draft_path.suffix + ".revised.md")
+  report_path = (
+    Path(args.report).expanduser()
+    if args.report
+    else draft_path.with_suffix(draft_path.suffix + ".revise-report.json")
+  )
+
+  sections = split_sections(full_text)
+  if not sections:
+    raise SystemExit("empty file")
+  # 見出しの重複などで節分割が本文を失っていないかの検査
+  reassembled = "".join(body for body in sections.values())
+  if len(reassembled) < len(full_text) * 0.95:
+    raise SystemExit(
+      f"節分割で本文が失われる（{len(full_text)} 文字 → {len(reassembled)} 文字）。"
+      "見出しの重複が原因の可能性。--only-sections で節を絞るか、ファイルを分けて実行"
+    )
+  only = [s.strip() for s in args.only_sections.split(",") if s.strip()]
+
+  todo: list[tuple[str, str]] = []
+  passthrough = 0
+  for label, body in sections.items():
+    if len(body) < args.min_section_chars:
+      passthrough += 1
+      continue
+    if only and not any(key in label for key in only):
+      passthrough += 1
+      continue
+    todo.append((label, body))
+
+  est_gen = len(todo) * args.n_candidates  # 1反復ぶんの生成数（反復すればさらに増える）
+  print(
+    f"節 {len(sections)} 件のうち {len(todo)} 件を処理（スキップ {passthrough}）。"
+    f"生成は最低 {est_gen} 回、最大 {est_gen * args.max_iters} 回",
+    flush=True,
+  )
+
+  primary = load_scorer(Path(args.primary_model))
+  gate = load_scorer(Path(args.gate_model))
+
+  results: dict[str, dict] = {}
+  for i, (label, body) in enumerate(todo, start=1):
+    print(f"[{i}/{len(todo)}] {label}", flush=True)
+    results[label] = revise_section(
+      label,
+      body,
+      primary=primary,
+      gate=gate,
+      args=args,
+      root=root,
+      api_key=api_key,
+    )
+
+  revised_parts = [
+    results[label]["text"] if label in results else body
+    for label, body in sections.items()
+  ]
+  out_path.write_text("\n".join(part.rstrip() + "\n" for part in revised_parts), encoding="utf-8")
+
+  n_accepted = sum(1 for r in results.values() if r["accepted"])
   report = {
     "file": str(draft_path),
     "out": str(out_path),
-    "status": status,
-    "accepted": accepted,
-    "final_margin_primary": round(current_margin, 4),
-    "min_margin": args.min_margin,
-    "gate_min_margin": args.gate_min_margin,
     "model": args.model,
     "n_candidates": args.n_candidates,
     "max_iters": args.max_iters,
-    "trail": [
-      {k: v for k, v in row.items() if k != "text"} for row in trail
+    "min_margin": args.min_margin,
+    "gate_min_margin": args.gate_min_margin,
+    "n_sections": len(sections),
+    "n_processed": len(todo),
+    "n_accepted": n_accepted,
+    "sections": [
+      {k: v for k, v in r.items() if k != "text"} for r in results.values()
     ],
   }
   report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
   print("", flush=True)
-  print(f"result: {'accepted' if accepted else status}", flush=True)
-  print(f"final margin: {current_margin:+.2f}（合格ライン {args.min_margin}、人間編集の中央値 1.9）", flush=True)
-  print(f"best text: {out_path}", flush=True)
+  print(f"result: {n_accepted}/{len(todo)} 節が合格ライン（margin ≥ {args.min_margin}）に到達", flush=True)
+  for label, r in results.items():
+    print(f"  {'o' if r['accepted'] else 'x'} margin={r['final_margin_primary']:+.2f} [{r['status']}] {label}", flush=True)
+  print(f"revised: {out_path}", flush=True)
   print(f"report: {report_path}", flush=True)
-  if not accepted:
+  if todo and n_accepted < len(todo):
     sys.exit(2)
 
 

@@ -327,6 +327,8 @@ revise:
 	  $(if $(MIN_MARGIN),--min-margin $(MIN_MARGIN),) \
 	  $(if $(GATE_MIN_MARGIN),--gate-min-margin $(GATE_MIN_MARGIN),) \
 	  $(if $(GEN_MODEL),--model "$(GEN_MODEL)",) \
+	  $(if $(ONLY_SECTIONS),--only-sections "$(ONLY_SECTIONS)",) \
+	  $(if $(MIN_SECTION_CHARS),--min-section-chars $(MIN_SECTION_CHARS),) \
 	  --primary-model "$(SENTSEQ_BEST_DIR)" \
 	  --gate-model "$(BT_OUTPUT_DIR)"
 
