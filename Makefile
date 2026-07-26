@@ -330,7 +330,8 @@ revise:
 	  $(if $(ONLY_SECTIONS),--only-sections "$(ONLY_SECTIONS)",) \
 	  $(if $(MIN_SECTION_CHARS),--min-section-chars $(MIN_SECTION_CHARS),) \
 	  --primary-model "$(SENTSEQ_BEST_DIR)" \
-	  --gate-model "$(BT_OUTPUT_DIR)"
+	  --gate-model "$(BT_OUTPUT_DIR)" \
+	  || { s=$$?; test $$s -eq 2 && echo "（閾値未達の節あり。詳細は上の一覧）" || exit $$s; }
 
 # 人間編集が下書きから稼ぐマージン分布を測り、合格閾値の根拠を出す
 calibrate-margins:
