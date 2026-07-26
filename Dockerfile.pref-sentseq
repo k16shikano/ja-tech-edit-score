@@ -20,6 +20,8 @@ COPY data/pref_split/valid.jsonl data/pref_split/valid.jsonl
 COPY data/pref_split_anchor/train.jsonl data/pref_split_anchor/train.jsonl
 COPY data/pref_split_anchor/train_frac25.jsonl data/pref_split_anchor/train_frac25.jsonl
 COPY data/pref_split_anchor/valid.jsonl data/pref_split_anchor/valid.jsonl
+# アンカー行込みの valid（追学習のエポック選択を両目的のバランスで行うため）
+COPY data/pref_split_anchor/valid_anchor.jsonl data/pref_split_anchor/valid_anchor.jsonl
 
 # 二段階学習の第1段（採用版 sentseq-3e4 の重み。INIT_FROM で指定して使う）
 COPY outputs/pref-sentseq-3e4/model.pt models/pref-sentseq-3e4.pt
