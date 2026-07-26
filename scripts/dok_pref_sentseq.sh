@@ -14,6 +14,9 @@ NUM_LAYERS="${NUM_LAYERS:-2}"
 BATCH_SIZE="${BATCH_SIZE:-64}"
 EPOCHS="${EPOCHS:-20}"
 LR="${LR:-1e-4}"
+# MODE=train 用: 学習/検証データの差し替え（例: アンカー付き分割）
+TRAIN_FILE="${TRAIN_FILE:-data/pref_split/train.jsonl}"
+EVAL_FILE="${EVAL_FILE:-data/pref_split/valid.jsonl}"
 # スモーク用: カンマ区切りの project_id。空なら全 fold
 ONLY_PROJECTS="${ONLY_PROJECTS:-}"
 
@@ -45,8 +48,8 @@ case "${MODE}" in
     ;;
   train)
     python scripts/train_pref_sentseq.py \
-      --train-file data/pref_split/train.jsonl \
-      --eval-file data/pref_split/valid.jsonl \
+      --train-file "${TRAIN_FILE}" \
+      --eval-file "${EVAL_FILE}" \
       --output-dir outputs/pref-sentseq \
       "${COMMON[@]}"
     cp -a outputs/pref-sentseq/. "${art}/pref-sentseq/"

@@ -16,6 +16,9 @@ RUN chmod +x /app/dok_pref_sentseq.sh
 COPY data/pref_dataset.jsonl data/pref_dataset.jsonl
 COPY data/pref_split/train.jsonl data/pref_split/train.jsonl
 COPY data/pref_split/valid.jsonl data/pref_split/valid.jsonl
+# アンカー付き分割（train のみ拡張、valid は同一。TRAIN_FILE で指定して使う）
+COPY data/pref_split_anchor/train.jsonl data/pref_split_anchor/train.jsonl
+COPY data/pref_split_anchor/valid.jsonl data/pref_split_anchor/valid.jsonl
 
 ENV PYTHONUNBUFFERED=1
 ENV MODE=xproject
