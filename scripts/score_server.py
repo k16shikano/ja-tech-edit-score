@@ -3,7 +3,13 @@
 
 点数は「下書きを基準にしたマージン」で、revise_loop と同じ定義:
   margin = s(下書き, 推敲) - s(下書き, 下書き)
-pref-sentseq（主軸）と pref-bt（ゲート）の二軸で返す。
+三軸で返す。
+- 主軸（pref-sentseq-3e4）: 全体の質。合否と分布ゲージに使う。
+- ゲート（pref-bt）: 細部（語彙・文単位）の悪化検出。
+- 方向（pref-sentseq-anchor-2stage-v2）: アンカー学習で方向感度を持つ検出器。
+  マージンが負なら「入れ替わり・改悪の疑い」を警告する（劣化版の負率 1.00、
+  逆方向の負率 0.76。ただし本物の人間編集でも約 4 割は負に出るため、
+  合否には使わず警告に留める）。
 合格閾値の目盛りには make calibrate-margins の人間編集マージン分布を使う。
 """
 from __future__ import annotations
@@ -24,18 +30,16 @@ from pydantic import BaseModel
 from pref_scorer import LoadedScorer, load_scorer
 from sentseq_utils import split_document_sentences
 
-# 主軸はアンカー学習版（方向感度あり: 逆方向・劣化に負のマージンを返す）。
-# 順位付け重視の旧主軸に戻すときは PRIMARY_MODEL=outputs/pref-sentseq-3e4 と
-# CALIBRATION_PATH=outputs/acceptance_margin_calibration.json を指定する。
-DEFAULT_PRIMARY = ROOT / "outputs" / "pref-sentseq-anchor"
+# 主軸は順位付け重視の pref-sentseq-3e4。方向感度は持たないので、
+# 入れ替わり・改悪の検出はアンカー学習版の方向軸が別に担う。
+DEFAULT_PRIMARY = ROOT / "outputs" / "pref-sentseq-3e4"
 DEFAULT_GATE = ROOT / "outputs" / "pref-bt"
-DEFAULT_CALIBRATION = ROOT / "outputs" / "acceptance_margin_calibration_anchor.json"
+DEFAULT_DIRECTION = ROOT / "outputs" / "pref-sentseq-anchor-2stage-v2"
+DEFAULT_CALIBRATION = ROOT / "outputs" / "acceptance_margin_calibration.json"
 INDEX_HTML = ROOT / "web" / "index.html"
 
-# アンカー版はマージンの符号が改善/悪化の向きを持つため、合格ラインは 0。
-# 人間編集の self 基準分布（valid 651 ペア）は中央値 0.14、正の率 0.60 で、
-# 小さな実編集も負に出ることがある点は分布ゲージで補って読む。
-DEFAULT_MIN_MARGIN = float(os.environ.get("MIN_MARGIN", "0.0"))
+# 合格ラインは self 基準の人間編集マージン中央値（make calibrate-margins）。
+DEFAULT_MIN_MARGIN = float(os.environ.get("MIN_MARGIN", "3.7"))
 DEFAULT_GATE_MIN_MARGIN = float(os.environ.get("GATE_MIN_MARGIN", "0.0"))
 
 SENTSEQ_MAX_SENTS = 128
@@ -53,6 +57,10 @@ def _load_models() -> None:
   _scorers["primary"] = load_scorer(primary_dir)
   print(f"loading gate: {gate_dir}", flush=True)
   _scorers["gate"] = load_scorer(gate_dir)
+  direction_spec = os.environ.get("DIRECTION_MODEL", str(DEFAULT_DIRECTION))
+  if direction_spec and direction_spec != "none":
+    print(f"loading direction: {direction_spec}", flush=True)
+    _scorers["direction"] = load_scorer(Path(direction_spec))
   calibration_path = Path(os.environ.get("CALIBRATION_PATH", str(DEFAULT_CALIBRATION)))
   if calibration_path.is_file():
     _calibration.update(json.loads(calibration_path.read_text(encoding="utf-8")))
@@ -129,7 +137,7 @@ def index() -> FileResponse:
 
 @app.get("/api/meta")
 def meta() -> dict:
-  return {
+  result = {
     "primary": {
       "scorer": _scorers["primary"].kind,
       "model_dir": _scorers["primary"].model_dir,
@@ -143,6 +151,12 @@ def meta() -> dict:
       "calibration": _calibration.get("gate"),
     },
   }
+  if "direction" in _scorers:
+    result["direction"] = {
+      "scorer": _scorers["direction"].kind,
+      "model_dir": _scorers["direction"].model_dir,
+    }
+  return result
 
 
 @app.post("/api/score")
@@ -156,9 +170,21 @@ def score(req: ScoreRequest) -> dict:
   gate = axis_result("gate", draft, revision)
   pass_primary = primary["margin"] >= DEFAULT_MIN_MARGIN
   pass_gate = gate["margin"] >= DEFAULT_GATE_MIN_MARGIN
+  warnings = build_warnings(draft, revision)
+
+  direction = None
+  if "direction" in _scorers:
+    direction = axis_result("direction", draft, revision)
+    if direction["margin"] < 0:
+      warnings.append(
+        "方向検出器のマージンが負です。下書きと推敲の入れ替わり、または改悪の"
+        "疑いがあります（ただし本物の編集でも約 4 割は負に出ます）。"
+      )
+
   return {
     "primary": primary,
     "gate": gate,
+    "direction": direction,
     "verdict": {
       "min_margin": DEFAULT_MIN_MARGIN,
       "gate_min_margin": DEFAULT_GATE_MIN_MARGIN,
@@ -166,7 +192,7 @@ def score(req: ScoreRequest) -> dict:
       "pass_gate": pass_gate,
       "accepted": pass_primary and pass_gate,
     },
-    "warnings": build_warnings(draft, revision),
+    "warnings": warnings,
     "identical": draft == revision,
   }
 

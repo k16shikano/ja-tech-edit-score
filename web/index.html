@@ -149,9 +149,9 @@
     <h1>推敲採点</h1>
     <p>下書きを基準に、推敲がどれだけ良くなったかをマージン（点差）で測ります。
        目盛りは人間編集 651 ペアのマージン分布です。
-       主軸はアンカー学習版（sentseq-anchor）で、マージンの符号が改善/悪化の
-       向きを持ちます。ただし小さな実編集の約4割は負に出るので、
-       符号と分布上の位置（百分位）を合わせて読んでください。</p>
+       主軸（pref-sentseq-3e4）は順位付け重視で「変更しただけで加点」の偏りが
+       あるため、方向検出器（アンカー学習版）を別軸で併用し、
+       入れ替わり・改悪の疑いを警告します。</p>
   </header>
 
   <div class="inputs">
@@ -194,6 +194,15 @@
         <span class="badge" id="gate-badge"></span>
       </div>
       <div class="gauge" id="gate-gauge"></div>
+    </div>
+    <div class="card" id="card-direction" style="display:none">
+      <h2>方向検出（sentseq アンカー学習版）</h2>
+      <div class="model" id="direction-model"></div>
+      <div class="margin-row">
+        <span class="margin-value" id="direction-margin"></span>
+        <span class="margin-note">負なら入れ替わり・改悪の疑い（合否には使わない）</span>
+        <span class="badge" id="direction-badge"></span>
+      </div>
     </div>
   </div>
 
@@ -277,6 +286,20 @@ $("run").addEventListener("click", async () => {
 
     renderAxis("primary", data.primary, data.verdict.pass_primary, data.verdict.min_margin);
     renderAxis("gate", data.gate, data.verdict.pass_gate, data.verdict.gate_min_margin);
+
+    if (data.direction) {
+      $("card-direction").style.display = "block";
+      $("direction-model").textContent = data.direction.model_dir;
+      const dm = $("direction-margin");
+      const positive = data.direction.margin >= 0;
+      dm.textContent = (positive ? "+" : "") + data.direction.margin.toFixed(2);
+      dm.className = "margin-value " + (positive ? "ok" : "ng");
+      const dbadge = $("direction-badge");
+      dbadge.textContent = positive ? "方向 OK" : "要確認";
+      dbadge.className = "badge " + (positive ? "ok" : "ng");
+    } else {
+      $("card-direction").style.display = "none";
+    }
 
     const w = $("warnings");
     w.innerHTML = data.warnings.map((t) => `<div>${t}</div>`).join("");
