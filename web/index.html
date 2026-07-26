@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ja-tech-edit-score — 推敲採点</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --ink: #1a1f2b;
+    --sub: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --ok: #059669;
+    --ng: #dc2626;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
+  header h1 { font-size: 20px; margin: 0 0 4px; }
+  header p { margin: 0 0 20px; color: var(--sub); font-size: 13px; }
+  .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .inputs { grid-template-columns: 1fr; } }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  textarea {
+    width: 100%;
+    height: 280px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.7;
+    resize: vertical;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .field .count { font-size: 12px; color: var(--sub); text-align: right; margin-top: 4px; }
+  .actions { margin: 20px 0; display: flex; align-items: center; gap: 14px; }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 28px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status { font-size: 13px; color: var(--sub); }
+  #verdict {
+    display: none;
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  #verdict.ok { display: block; background: #ecfdf5; color: var(--ok); border: 1px solid #a7f3d0; }
+  #verdict.ng { display: block; background: #fef2f2; color: var(--ng); border: 1px solid #fecaca; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .cards { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .card h2 { font-size: 14px; margin: 0; }
+  .card .model { font-size: 12px; color: var(--sub); margin: 2px 0 14px; }
+  .margin-row { display: flex; align-items: baseline; gap: 10px; }
+  .margin-value { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .margin-value.ok { color: var(--ok); }
+  .margin-value.ng { color: var(--ng); }
+  .margin-note { font-size: 12px; color: var(--sub); }
+  .badge {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  .badge.ok { background: #ecfdf5; color: var(--ok); }
+  .badge.ng { background: #fef2f2; color: var(--ng); }
+  .gauge { margin-top: 16px; }
+  .gauge .track {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(to right, #fca5a5, #fde68a 35%, #86efac 70%);
+  }
+  .gauge .pointer {
+    position: absolute;
+    top: -5px;
+    width: 4px;
+    height: 20px;
+    border-radius: 2px;
+    background: var(--ink);
+    transform: translateX(-2px);
+  }
+  .gauge .ticks {
+    position: relative;
+    height: 30px;
+    font-size: 11px;
+    color: var(--sub);
+  }
+  .gauge .tick {
+    position: absolute;
+    top: 4px;
+    transform: translateX(-50%);
+    text-align: center;
+    white-space: nowrap;
+  }
+  .gauge .caption { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  #warnings { margin-top: 16px; display: none; }
+  #warnings div {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: var(--warn);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  #error {
+    display: none;
+    margin-top: 16px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: var(--ng);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>推敲採点</h1>
+    <p>下書きを基準に、推敲がどれだけ良くなったかをマージン（点差）で測ります。
+       目盛りは人間編集 651 ペアのマージン分布です。
+       変更を加えるだけで小さな正のマージンが付く偏りがあるため、
+       正の値そのものではなく、分布上の位置（百分位）で読んでください。</p>
+  </header>
+
+  <div class="inputs">
+    <div class="field">
+      <label for="draft">下書き</label>
+      <textarea id="draft" placeholder="推敲前の文章を貼り付け"></textarea>
+      <div class="count" id="draft-count">0 字</div>
+    </div>
+    <div class="field">
+      <label for="revision">推敲</label>
+      <textarea id="revision" placeholder="推敲後の文章を貼り付け"></textarea>
+      <div class="count" id="revision-count">0 字</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="run">採点する</button>
+    <span id="status"></span>
+  </div>
+
+  <div id="verdict"></div>
+
+  <div class="cards">
+    <div class="card" id="card-primary" style="display:none">
+      <h2>全体の質（pref-sentseq）</h2>
+      <div class="model" id="primary-model"></div>
+      <div class="margin-row">
+        <span class="margin-value" id="primary-margin"></span>
+        <span class="margin-note" id="primary-note"></span>
+        <span class="badge" id="primary-badge"></span>
+      </div>
+      <div class="gauge" id="primary-gauge"></div>
+    </div>
+    <div class="card" id="card-gate" style="display:none">
+      <h2>細部の質ゲート（pref-bt）</h2>
+      <div class="model" id="gate-model"></div>
+      <div class="margin-row">
+        <span class="margin-value" id="gate-margin"></span>
+        <span class="margin-note" id="gate-note"></span>
+        <span class="badge" id="gate-badge"></span>
+      </div>
+      <div class="gauge" id="gate-gauge"></div>
+    </div>
+  </div>
+
+  <div id="warnings"></div>
+  <div id="error"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+for (const name of ["draft", "revision"]) {
+  $(name).addEventListener("input", () => {
+    $(name + "-count").textContent = $(name).value.length + " 字";
+  });
+}
+
+function renderGauge(el, axis) {
+  const p = axis.percentiles;
+  if (!p) { el.innerHTML = ""; return; }
+  const pos = Math.min(95, Math.max(5, axis.percentile_position ?? 5));
+  const x = ((pos - 5) / 90) * 100;
+  const ticks = [
+    [5, p.p5], [25, p.p25], [50, p.p50], [75, p.p75], [95, p.p95],
+  ].map(([q, v]) => {
+    const tx = ((q - 5) / 90) * 100;
+    return `<span class="tick" style="left:${tx}%">p${q}<br>${v.toFixed(1)}</span>`;
+  }).join("");
+  el.innerHTML = `
+    <div class="track"><span class="pointer" style="left:${x}%"></span></div>
+    <div class="ticks">${ticks}</div>
+    <div class="caption">人間編集のマージン分布上の位置: 約 p${(axis.percentile_position ?? 0).toFixed(0)}</div>`;
+}
+
+function renderAxis(key, axis, passed, threshold) {
+  $("card-" + key).style.display = "block";
+  $(key + "-model").textContent = axis.model_dir;
+  const m = $(key + "-margin");
+  m.textContent = (axis.margin >= 0 ? "+" : "") + axis.margin.toFixed(2);
+  m.className = "margin-value " + (passed ? "ok" : "ng");
+  $(key + "-note").textContent = `合格ライン ${threshold >= 0 ? "+" : ""}${threshold}`;
+  const badge = $(key + "-badge");
+  badge.textContent = passed ? "合格" : "不合格";
+  badge.className = "badge " + (passed ? "ok" : "ng");
+  renderGauge($(key + "-gauge"), axis);
+}
+
+$("run").addEventListener("click", async () => {
+  const draft = $("draft").value;
+  const revision = $("revision").value;
+  $("error").style.display = "none";
+  if (!draft.trim() || !revision.trim()) {
+    $("error").textContent = "下書きと推敲の両方を入力してください。";
+    $("error").style.display = "block";
+    return;
+  }
+  $("run").disabled = true;
+  $("status").textContent = "採点中…";
+  try {
+    const res = await fetch("/api/score", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ draft, revision }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const data = await res.json();
+
+    const v = $("verdict");
+    if (data.identical) {
+      v.className = "ng";
+      v.textContent = "下書きと推敲が同一です。";
+    } else if (data.verdict.accepted) {
+      v.className = "ok";
+      v.textContent = "合格: 全体の質が合格ラインに達し、細部の悪化もありません。";
+    } else if (!data.verdict.pass_gate) {
+      v.className = "ng";
+      v.textContent = "不合格: pref-bt のゲートで、細部（語彙・文単位）の悪化が検出されました。";
+    } else {
+      v.className = "ng";
+      v.textContent = "不合格: 改善はあっても、人間編集の典型的な改善幅（合格ライン）に達していません。";
+    }
+
+    renderAxis("primary", data.primary, data.verdict.pass_primary, data.verdict.min_margin);
+    renderAxis("gate", data.gate, data.verdict.pass_gate, data.verdict.gate_min_margin);
+
+    const w = $("warnings");
+    w.innerHTML = data.warnings.map((t) => `<div>${t}</div>`).join("");
+    w.style.display = data.warnings.length ? "block" : "none";
+  } catch (e) {
+    $("error").textContent = "採点に失敗しました: " + e.message;
+    $("error").style.display = "block";
+  } finally {
+    $("run").disabled = false;
+    $("status").textContent = "";
+  }
+});
+</script>
+</body>
+</html>

@@ -56,7 +56,7 @@ TRANSITION_OUTPUT_DIR := $(ROOT)outputs/paragraph-transition
 STRUCTURE_PROFILE := $(DATA_DIR)/section_edit_profile.jsonl
 STRUCTURE_EVAL_DIR := $(ROOT)outputs/structure_eval
 
-.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-ce train-sentseq eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer calibrate-margins revise
+.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-ce train-sentseq eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer calibrate-margins revise serve
 
 help:
 	@echo "Targets:"
@@ -84,7 +84,8 @@ help:
 	@echo "  make score-bt SOURCE=... CANDIDATE=...  # BT 絶対スコア"
 	@echo "  make rank SOURCE=... CANDIDATE_FILES='a.txt b.txt'  # Best-of-N（既定: sentseq 主軸 + bt ゲートの二軸）"
 	@echo "  make calibrate-margins  # 人間編集のマージン分布（合格閾値の根拠）"
-	@echo "  make revise FILE=下書き.md [N=3] [MAX_ITERS=3] [MIN_MARGIN=1.9]  # 生成→二軸判定の推敲ループ"
+	@echo "  make revise FILE=下書き.md [N=3] [MAX_ITERS=3] [MIN_MARGIN=3.7]  # 生成→二軸判定の推敲ループ"
+	@echo "  make serve [PORT=8300]  # 下書きと推敲に点数を付ける Web サービス"
 	@echo "  make converge CURRENT=... REVISED=... [MODE=pair|bt]  # 収束判定"
 	@echo "  make edit-sft-data  # 系統1フェーズ0: chat SFT データ書き出し"
 	@echo "  make edit-sft MODEL=<hf-id> [LIMIT=0] [EPOCHS=2]  # 系統1フェーズ1: QLoRA SFT（GPU）"
@@ -333,6 +334,10 @@ revise:
 	  --primary-model "$(SENTSEQ_BEST_DIR)" \
 	  --gate-model "$(BT_OUTPUT_DIR)" \
 	  || { s=$$?; test $$s -eq 2 && echo "（閾値未達の節あり。詳細は上の一覧）" || exit $$s; }
+
+# 下書きと推敲に点数を付けるローカル Web サービス（http://127.0.0.1:8300）
+serve:
+	$(PYTHON) scripts/score_server.py --port $(or $(PORT),8300)
 
 # 人間編集が下書きから稼ぐマージン分布を測り、合格閾値の根拠を出す
 calibrate-margins:
