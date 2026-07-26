@@ -149,8 +149,9 @@
     <h1>推敲採点</h1>
     <p>下書きを基準に、推敲がどれだけ良くなったかをマージン（点差）で測ります。
        目盛りは人間編集 651 ペアのマージン分布です。
-       変更を加えるだけで小さな正のマージンが付く偏りがあるため、
-       正の値そのものではなく、分布上の位置（百分位）で読んでください。</p>
+       主軸はアンカー学習版（sentseq-anchor）で、マージンの符号が改善/悪化の
+       向きを持ちます。ただし小さな実編集の約4割は負に出るので、
+       符号と分布上の位置（百分位）を合わせて読んでください。</p>
   </header>
 
   <div class="inputs">
@@ -271,7 +272,7 @@ $("run").addEventListener("click", async () => {
       v.textContent = "不合格: pref-bt のゲートで、細部（語彙・文単位）の悪化が検出されました。";
     } else {
       v.className = "ng";
-      v.textContent = "不合格: 改善はあっても、人間編集の典型的な改善幅（合格ライン）に達していません。";
+      v.textContent = "不合格: 全体の質の改善が検出されませんでした（マージンが合格ライン未満）。";
     }
 
     renderAxis("primary", data.primary, data.verdict.pass_primary, data.verdict.min_margin);

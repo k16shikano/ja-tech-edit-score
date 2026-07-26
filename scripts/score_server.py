@@ -24,16 +24,19 @@ from pydantic import BaseModel
 from pref_scorer import LoadedScorer, load_scorer
 from sentseq_utils import split_document_sentences
 
-DEFAULT_PRIMARY = ROOT / "outputs" / "pref-sentseq-3e4"
+# 主軸はアンカー学習版（方向感度あり: 逆方向・劣化に負のマージンを返す）。
+# 順位付け重視の旧主軸に戻すときは PRIMARY_MODEL=outputs/pref-sentseq-3e4 と
+# CALIBRATION_PATH=outputs/acceptance_margin_calibration.json を指定する。
+DEFAULT_PRIMARY = ROOT / "outputs" / "pref-sentseq-anchor"
 DEFAULT_GATE = ROOT / "outputs" / "pref-bt"
-CALIBRATION_PATH = ROOT / "outputs" / "acceptance_margin_calibration.json"
+DEFAULT_CALIBRATION = ROOT / "outputs" / "acceptance_margin_calibration_anchor.json"
 INDEX_HTML = ROOT / "web" / "index.html"
 
-# 人間編集の self 基準マージン分布（valid 651 ペア）の中央値を根拠にした既定閾値。
-# self 基準（基準=下書き自身）には「変更しただけで加点」の偏りが乗るため、
-# 正のマージンは改善の証明にならない。閾値は分布上の位置の目安にとどまる。
-DEFAULT_MIN_MARGIN = 3.7
-DEFAULT_GATE_MIN_MARGIN = 0.0
+# アンカー版はマージンの符号が改善/悪化の向きを持つため、合格ラインは 0。
+# 人間編集の self 基準分布（valid 651 ペア）は中央値 0.14、正の率 0.60 で、
+# 小さな実編集も負に出ることがある点は分布ゲージで補って読む。
+DEFAULT_MIN_MARGIN = float(os.environ.get("MIN_MARGIN", "0.0"))
+DEFAULT_GATE_MIN_MARGIN = float(os.environ.get("GATE_MIN_MARGIN", "0.0"))
 
 SENTSEQ_MAX_SENTS = 128
 
@@ -50,8 +53,9 @@ def _load_models() -> None:
   _scorers["primary"] = load_scorer(primary_dir)
   print(f"loading gate: {gate_dir}", flush=True)
   _scorers["gate"] = load_scorer(gate_dir)
-  if CALIBRATION_PATH.is_file():
-    _calibration.update(json.loads(CALIBRATION_PATH.read_text(encoding="utf-8")))
+  calibration_path = Path(os.environ.get("CALIBRATION_PATH", str(DEFAULT_CALIBRATION)))
+  if calibration_path.is_file():
+    _calibration.update(json.loads(calibration_path.read_text(encoding="utf-8")))
   print("ready", flush=True)
 
 
