@@ -253,7 +253,7 @@ def score(req: ScoreRequest, request: Request):
   if len(draft) > MAX_TEXT_CHARS or len(revision) > MAX_TEXT_CHARS:
     raise HTTPException(
       status_code=400,
-      detail=f"下書き・推敲はそれぞれ {MAX_TEXT_CHARS} 字以内にしてください",
+      detail=f"下書きも推敲も {MAX_TEXT_CHARS} 字以内にしてください",
     )
 
   limit_info = rate_limit_status(client_ip(request), consume=True)
@@ -284,7 +284,7 @@ def score(req: ScoreRequest, request: Request):
     if direction["margin"] < 0:
       warnings.append(
         "方向検出器のマージンが負です。下書きと推敲の入れ替わり、または改悪の"
-        "疑いがあります（ただし本物の編集でも約 4 割は負に出ます）。"
+        "疑いがあります（本物の編集でも約 4 割は負に出るので深く気にしないでね）。"
       )
 
   return {
