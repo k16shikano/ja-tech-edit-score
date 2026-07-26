@@ -56,7 +56,7 @@ TRANSITION_OUTPUT_DIR := $(ROOT)outputs/paragraph-transition
 STRUCTURE_PROFILE := $(DATA_DIR)/section_edit_profile.jsonl
 STRUCTURE_EVAL_DIR := $(ROOT)outputs/structure_eval
 
-.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-ce train-sentseq eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer calibrate-margins revise serve
+.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-ce train-sentseq eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image build-serve-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer calibrate-margins revise serve
 
 help:
 	@echo "Targets:"
@@ -86,6 +86,7 @@ help:
 	@echo "  make calibrate-margins  # 人間編集のマージン分布（合格閾値の根拠）"
 	@echo "  make revise FILE=下書き.md [N=3] [MAX_ITERS=3] [MIN_MARGIN=3.7]  # 生成→二軸判定の推敲ループ"
 	@echo "  make serve [HOST=0.0.0.0] [PORT=8300]  # 下書きと推敲に点数を付ける Web サービス（RATE_LIMIT_PER_IP / RATE_LIMIT_WINDOW_SECONDS / MAX_TEXT_CHARS）"
+	@echo "  make build-serve-image  # Fly 公開用 Docker イメージをローカル build"
 	@echo "  make converge CURRENT=... REVISED=... [MODE=pair|bt]  # 収束判定"
 	@echo "  make edit-sft-data  # 系統1フェーズ0: chat SFT データ書き出し"
 	@echo "  make edit-sft MODEL=<hf-id> [LIMIT=0] [EPOCHS=2]  # 系統1フェーズ1: QLoRA SFT（GPU）"
@@ -176,6 +177,9 @@ build-pref-ce-image:
 
 build-pref-sentseq-image:
 	bash scripts/build_pref_sentseq_image.sh
+
+build-serve-image:
+	docker build -f Dockerfile.serve -t ja-tech-edit-score:serve .
 
 train: $(RAW)
 	@test -s "$(RAW)" || (echo "no training data: run make data first" && exit 1)

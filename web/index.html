@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ja-tech-edit-score — 推敲採点</title>
+<title>ja-tech-edit-score — 日本語推敲を採点する君</title>
 <style>
   :root {
     --bg: #f4f5f7;
@@ -172,19 +172,24 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>推敲採点</h1>
+    <h1>日本語推敲を採点する君</h1>
     <p class="lead">下書きを基準に、推敲がどれだけ良くなったかをマージン（点差）で測ります。
-       目盛りは人間編集 651 ペアのマージン分布です。</p>
+       マージンの分布は、人間（<a href="https://github.com/k16shikano" target="_blank" rel="noopener noreferrer">鹿野</a>）による推敲例 651 ペアから算出しています。</p>
   </header>
 
   <aside class="notices" aria-label="利用上の注意">
     <h2>利用上の注意</h2>
     <ul>
-      <li>主軸の採点は「推敲で悪くなることはない」という想定に近いため、変更があると正の評価値になりやすいです。下書きと推敲を入れ替えて指定しないでください。入れ替えても正の値が出ることがあり、悪化の証明にはなりません。</li>
-      <li>入力した文章は評価の計算にだけ使い、サーバに保管したり学習に使ったりしません。</li>
+      <li>このモデルでは「悪化したか」を評価できません
+        （主軸の採点は「推敲で悪くなることはない」という想定に近いので、変更があると正の評価値になりやすい）。
+        そのため、<b>下書きと推敲を入れ替えて指定しないでください</b>。</li>
+      <li>入力した文章はモデルによる評価計算のためにサーバーに送られるので注意してください
+        （サーバーに長期間保存されたり学習に使ったりされることはありません）。</li>
+      <li>入力できるのは8000文字まで。</li>
+      <li>IPアドレス単位で試行回数に制限を設けています（集合住宅とかでは注意してください）。</li>
       <li>仕組みの説明とコードは
         <a href="https://github.com/k16shikano/ja-tech-edit-score" target="_blank" rel="noopener noreferrer">GitHub リポジトリ</a>
-        を見てください。</li>
+        を参照。</li>
     </ul>
     <div class="quota" id="quota">試行回数の制限を確認中…</div>
   </aside>

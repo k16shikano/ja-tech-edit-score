@@ -1,0 +1,10 @@
+# 採点 Web サービス用（CPU 推論）。Fly.io 等向け。
+# torch は Dockerfile 側で CPU 版を入れる。
+numpy>=1.20.0
+scikit-learn>=1.0.0
+joblib>=1.2.0
+sentencepiece>=0.1.99
+protobuf>=4.0.0
+sentence-transformers>=2.2.0
+fastapi>=0.110.0
+uvicorn>=0.29.0

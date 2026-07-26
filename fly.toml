@@ -1,0 +1,42 @@
+# fly.toml app configuration file generated for ja-tech-edit-score
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'ja-tech-edit-score'
+primary_region = 'nrt'
+
+[build]
+  dockerfile = 'Dockerfile.serve'
+
+[env]
+  RATE_LIMIT_PER_IP = '10'
+  RATE_LIMIT_WINDOW_SECONDS = '86400'
+  MAX_TEXT_CHARS = '8000'
+  MIN_MARGIN = '3.7'
+  GATE_MIN_MARGIN = '0.0'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 10
+    soft_limit = 5
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '10s'
+    grace_period = '120s'
+    method = 'GET'
+    path = '/api/meta'
+
+[[vm]]
+  size = 'shared-cpu-2x'
+  memory = '2gb'
+  cpus = 2
