@@ -11,6 +11,9 @@
   逆方向の負率 0.76。ただし本物の人間編集でも約 4 割は負に出るため、
   合否には使わず警告に留める）。
 合格閾値の目盛りには make calibrate-margins の人間編集マージン分布を使う。
+
+公開時の濫用防止として、IP 単位の試行回数制限と入力文字数上限を持つ。
+入力本文は採点のあいだだけメモリ上に置き、保存・学習には使わない。
 """
 from __future__ import annotations
 
@@ -18,14 +21,17 @@ import argparse
 import json
 import os
 import sys
+import threading
+import time
+from collections import defaultdict, deque
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field
 
 from pref_scorer import LoadedScorer, load_scorer
 from sentseq_utils import split_document_sentences
@@ -42,12 +48,20 @@ INDEX_HTML = ROOT / "web" / "index.html"
 DEFAULT_MIN_MARGIN = float(os.environ.get("MIN_MARGIN", "3.7"))
 DEFAULT_GATE_MIN_MARGIN = float(os.environ.get("GATE_MIN_MARGIN", "0.0"))
 
+# 公開向けの濫用防止。ローカル検証では RATE_LIMIT_PER_IP=0 で無効化できる。
+RATE_LIMIT_PER_IP = int(os.environ.get("RATE_LIMIT_PER_IP", "10"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", str(24 * 3600)))
+MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "8000"))
+
 SENTSEQ_MAX_SENTS = 128
+GITHUB_REPO_URL = "https://github.com/k16shikano/ja-tech-edit-score"
 
 app = FastAPI(title="ja-tech-edit-score")
 
 _scorers: dict[str, LoadedScorer] = {}
 _calibration: dict = {}
+_rate_lock = threading.Lock()
+_rate_hits: dict[str, deque[float]] = defaultdict(deque)
 
 
 def _load_models() -> None:
@@ -73,8 +87,63 @@ def startup() -> None:
 
 
 class ScoreRequest(BaseModel):
-  draft: str
-  revision: str
+  draft: str = Field(default="", max_length=MAX_TEXT_CHARS)
+  revision: str = Field(default="", max_length=MAX_TEXT_CHARS)
+
+
+def client_ip(request: Request) -> str:
+  forwarded = request.headers.get("x-forwarded-for", "")
+  if forwarded:
+    return forwarded.split(",")[0].strip() or "unknown"
+  if request.client and request.client.host:
+    return request.client.host
+  return "unknown"
+
+
+def rate_limit_status(ip: str, *, consume: bool = False) -> dict:
+  """IP 単位の残り回数を返す。consume=True なら、空きがあれば今回分を消費する。"""
+  if RATE_LIMIT_PER_IP <= 0:
+    return {
+      "enabled": False,
+      "allowed": True,
+      "limit": 0,
+      "remaining": None,
+      "window_seconds": RATE_LIMIT_WINDOW_SECONDS,
+      "reset_after_seconds": None,
+    }
+
+  now = time.time()
+  cutoff = now - RATE_LIMIT_WINDOW_SECONDS
+  with _rate_lock:
+    hits = _rate_hits[ip]
+    while hits and hits[0] < cutoff:
+      hits.popleft()
+    used = len(hits)
+    remaining = max(0, RATE_LIMIT_PER_IP - used)
+    reset_after = (
+      int(hits[0] + RATE_LIMIT_WINDOW_SECONDS - now) if hits else RATE_LIMIT_WINDOW_SECONDS
+    )
+    if consume:
+      if remaining <= 0:
+        return {
+          "enabled": True,
+          "allowed": False,
+          "limit": RATE_LIMIT_PER_IP,
+          "remaining": 0,
+          "window_seconds": RATE_LIMIT_WINDOW_SECONDS,
+          "reset_after_seconds": max(1, reset_after),
+        }
+      hits.append(now)
+      remaining -= 1
+      reset_after = int(hits[0] + RATE_LIMIT_WINDOW_SECONDS - now)
+    return {
+      "enabled": True,
+      "allowed": True,
+      "limit": RATE_LIMIT_PER_IP,
+      "remaining": remaining,
+      "window_seconds": RATE_LIMIT_WINDOW_SECONDS,
+      "reset_after_seconds": max(1, reset_after) if used or consume else RATE_LIMIT_WINDOW_SECONDS,
+    }
 
 
 def percentile_position(margin: float, percentiles: dict[str, float]) -> float:
@@ -136,7 +205,7 @@ def index() -> FileResponse:
 
 
 @app.get("/api/meta")
-def meta() -> dict:
+def meta(request: Request) -> dict:
   result = {
     "primary": {
       "scorer": _scorers["primary"].kind,
@@ -150,6 +219,18 @@ def meta() -> dict:
       "min_margin": DEFAULT_GATE_MIN_MARGIN,
       "calibration": _calibration.get("gate"),
     },
+    "notices": {
+      "do_not_swap": (
+        "主軸の採点は「推敲で悪くなることはない」という想定に近いため、"
+        "変更があると正の評価値になりやすい。下書きと推敲を入れ替えて指定しないこと。"
+      ),
+      "no_storage": "入力文章は評価の計算にだけ使い、サーバに保管したり学習に使ったりしない。",
+      "source_repo": GITHUB_REPO_URL,
+    },
+    "limits": {
+      "max_text_chars": MAX_TEXT_CHARS,
+    },
+    "rate_limit": rate_limit_status(client_ip(request), consume=False),
   }
   if "direction" in _scorers:
     result["direction"] = {
@@ -160,11 +241,32 @@ def meta() -> dict:
 
 
 @app.post("/api/score")
-def score(req: ScoreRequest) -> dict:
+def score(req: ScoreRequest, request: Request):
   draft = req.draft.strip()
   revision = req.revision.strip()
   if not draft or not revision:
     raise HTTPException(status_code=400, detail="draft と revision の両方が必要です")
+  if len(draft) > MAX_TEXT_CHARS or len(revision) > MAX_TEXT_CHARS:
+    raise HTTPException(
+      status_code=400,
+      detail=f"下書き・推敲はそれぞれ {MAX_TEXT_CHARS} 字以内にしてください",
+    )
+
+  limit_info = rate_limit_status(client_ip(request), consume=True)
+  if not limit_info["allowed"]:
+    reset_after = int(limit_info["reset_after_seconds"] or RATE_LIMIT_WINDOW_SECONDS)
+    return JSONResponse(
+      status_code=429,
+      content={
+        "detail": (
+          f"試行上限（{limit_info['limit']} 回 / "
+          f"{limit_info['window_seconds']} 秒）に達しました。"
+          f"約 {reset_after} 秒後に再度お試しください。"
+        ),
+        "rate_limit": limit_info,
+      },
+      headers={"Retry-After": str(reset_after)},
+    )
 
   primary = axis_result("primary", draft, revision)
   gate = axis_result("gate", draft, revision)
@@ -194,6 +296,7 @@ def score(req: ScoreRequest) -> dict:
     },
     "warnings": warnings,
     "identical": draft == revision,
+    "rate_limit": limit_info,
   }
 
 

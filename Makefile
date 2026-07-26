@@ -85,7 +85,7 @@ help:
 	@echo "  make rank SOURCE=... CANDIDATE_FILES='a.txt b.txt'  # Best-of-N（既定: sentseq 主軸 + bt ゲートの二軸）"
 	@echo "  make calibrate-margins  # 人間編集のマージン分布（合格閾値の根拠）"
 	@echo "  make revise FILE=下書き.md [N=3] [MAX_ITERS=3] [MIN_MARGIN=3.7]  # 生成→二軸判定の推敲ループ"
-	@echo "  make serve [HOST=0.0.0.0] [PORT=8300]  # 下書きと推敲に点数を付ける Web サービス"
+	@echo "  make serve [HOST=0.0.0.0] [PORT=8300]  # 下書きと推敲に点数を付ける Web サービス（RATE_LIMIT_PER_IP / RATE_LIMIT_WINDOW_SECONDS / MAX_TEXT_CHARS）"
 	@echo "  make converge CURRENT=... REVISED=... [MODE=pair|bt]  # 収束判定"
 	@echo "  make edit-sft-data  # 系統1フェーズ0: chat SFT データ書き出し"
 	@echo "  make edit-sft MODEL=<hf-id> [LIMIT=0] [EPOCHS=2]  # 系統1フェーズ1: QLoRA SFT（GPU）"
@@ -336,7 +336,9 @@ revise:
 	  || { s=$$?; test $$s -eq 2 && echo "（閾値未達の節あり。詳細は上の一覧）" || exit $$s; }
 
 # 下書きと推敲に点数を付ける Web サービス（既定 http://127.0.0.1:8300）
-# 他のマシンから使うときは HOST=0.0.0.0 か、待ち受けたいインタフェースの IP を指定
+# 他のマシンから使うときは HOST=0.0.0.0 か、待ち受けたいインタフェースの IP を指定。
+# 公開時は RATE_LIMIT_PER_IP（既定 10）と RATE_LIMIT_WINDOW_SECONDS（既定 86400）で
+# IP 単位の試行を制限。ローカルで無制限にするときは RATE_LIMIT_PER_IP=0。
 serve:
 	$(PYTHON) scripts/score_server.py --host $(or $(HOST),127.0.0.1) --port $(or $(PORT),8300)
 

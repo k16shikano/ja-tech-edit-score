@@ -26,7 +26,33 @@
   }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
   header h1 { font-size: 20px; margin: 0 0 4px; }
-  header p { margin: 0 0 20px; color: var(--sub); font-size: 13px; }
+  header .lead { margin: 0 0 16px; color: var(--sub); font-size: 13px; }
+  .notices {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .notices h2 {
+    font-size: 13px;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .notices ul {
+    margin: 0;
+    padding-left: 1.2em;
+  }
+  .notices li { margin: 0.35em 0; }
+  .notices a { color: var(--accent); }
+  .quota {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    color: var(--sub);
+    font-size: 12px;
+  }
   .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 800px) { .inputs { grid-template-columns: 1fr; } }
   .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
@@ -147,21 +173,30 @@
 <div class="wrap">
   <header>
     <h1>推敲採点</h1>
-    <p>下書きを基準に、推敲がどれだけ良くなったかをマージン（点差）で測ります。
-       目盛りは人間編集 651 ペアのマージン分布です。
-       主軸（pref-sentseq-3e4）は順位付け重視で「変更しただけで加点」の偏りが
-       あるため、方向検出器（アンカー学習版）を別軸で併用し、
-       入れ替わり・改悪の疑いを警告します。</p>
+    <p class="lead">下書きを基準に、推敲がどれだけ良くなったかをマージン（点差）で測ります。
+       目盛りは人間編集 651 ペアのマージン分布です。</p>
   </header>
+
+  <aside class="notices" aria-label="利用上の注意">
+    <h2>利用上の注意</h2>
+    <ul>
+      <li>主軸の採点は「推敲で悪くなることはない」という想定に近いため、変更があると正の評価値になりやすいです。下書きと推敲を入れ替えて指定しないでください。入れ替えても正の値が出ることがあり、悪化の証明にはなりません。</li>
+      <li>入力した文章は評価の計算にだけ使い、サーバに保管したり学習に使ったりしません。</li>
+      <li>仕組みの説明とコードは
+        <a href="https://github.com/k16shikano/ja-tech-edit-score" target="_blank" rel="noopener noreferrer">GitHub リポジトリ</a>
+        を見てください。</li>
+    </ul>
+    <div class="quota" id="quota">試行回数の制限を確認中…</div>
+  </aside>
 
   <div class="inputs">
     <div class="field">
-      <label for="draft">下書き</label>
+      <label for="draft">下書き（推敲前）</label>
       <textarea id="draft" placeholder="推敲前の文章を貼り付け"></textarea>
       <div class="count" id="draft-count">0 字</div>
     </div>
     <div class="field">
-      <label for="revision">推敲</label>
+      <label for="revision">推敲（推敲後）</label>
       <textarea id="revision" placeholder="推敲後の文章を貼り付け"></textarea>
       <div class="count" id="revision-count">0 字</div>
     </div>
@@ -212,11 +247,50 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
+let rateLimit = null;
 
 for (const name of ["draft", "revision"]) {
   $(name).addEventListener("input", () => {
     $(name + "-count").textContent = $(name).value.length + " 字";
   });
+}
+
+function formatWindow(seconds) {
+  if (seconds >= 86400) return Math.round(seconds / 86400) + " 日";
+  if (seconds >= 3600) return Math.round(seconds / 3600) + " 時間";
+  if (seconds >= 60) return Math.round(seconds / 60) + " 分";
+  return seconds + " 秒";
+}
+
+function renderQuota(info) {
+  if (!info) {
+    $("quota").textContent = "";
+    return;
+  }
+  const rem = info.remaining;
+  const lim = info.limit;
+  const win = formatWindow(info.window_seconds);
+  if (rem <= 0) {
+    $("quota").textContent =
+      `試行上限に達しました（${lim} 回 / ${win}）。しばらくしてから再度お試しください。`;
+    $("run").disabled = true;
+  } else {
+    $("quota").textContent =
+      `試行回数の残り: ${rem} / ${lim}（${win}あたり。IP アドレス単位）`;
+    $("run").disabled = false;
+  }
+}
+
+async function loadMeta() {
+  try {
+    const res = await fetch("/api/meta");
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    rateLimit = data.rate_limit || null;
+    renderQuota(rateLimit);
+  } catch (e) {
+    $("quota").textContent = "試行回数の制限情報を取得できませんでした。";
+  }
 }
 
 function renderGauge(el, axis) {
@@ -249,6 +323,15 @@ function renderAxis(key, axis, passed, threshold) {
   renderGauge($(key + "-gauge"), axis);
 }
 
+function errorDetail(payload, fallback) {
+  if (!payload) return fallback;
+  if (typeof payload.detail === "string") return payload.detail;
+  if (payload.detail && typeof payload.detail.message === "string") {
+    return payload.detail.message;
+  }
+  return fallback;
+}
+
 $("run").addEventListener("click", async () => {
   const draft = $("draft").value;
   const revision = $("revision").value;
@@ -266,8 +349,19 @@ $("run").addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ draft, revision }),
     });
-    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
-    const data = await res.json();
+    const payload = await res.json().catch(() => null);
+    if (!res.ok) {
+      if (payload && payload.rate_limit) {
+        rateLimit = payload.rate_limit;
+        renderQuota(rateLimit);
+      }
+      throw new Error(errorDetail(payload, res.statusText));
+    }
+    const data = payload;
+    if (data.rate_limit) {
+      rateLimit = data.rate_limit;
+      renderQuota(rateLimit);
+    }
 
     const v = $("verdict");
     if (data.identical) {
@@ -308,10 +402,16 @@ $("run").addEventListener("click", async () => {
     $("error").textContent = "採点に失敗しました: " + e.message;
     $("error").style.display = "block";
   } finally {
-    $("run").disabled = false;
     $("status").textContent = "";
+    if (rateLimit && rateLimit.remaining > 0) {
+      $("run").disabled = false;
+    } else if (!rateLimit) {
+      $("run").disabled = false;
+    }
   }
 });
+
+loadMeta();
 </script>
 </body>
 </html>
