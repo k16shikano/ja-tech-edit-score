@@ -384,6 +384,37 @@ self 基準の偏りを学習データ側で直す試み。実ペアの役割を
   下げる（例: 実ペアの 1/4）、または通常学習後の短い追学習に限る、の
   2 案が次の実験候補。
 
+### 順位付け退化への対策 2 案（2026-07-26、準備済み）
+
+上のトレードオフに対して、2 案を同時に DOK で走らせて比べる。
+
+- **案 1（アンカー比率 1/4）**: `scripts/build_anchor_pairs.py --anchor-fraction 0.25`
+  で、実ペアの 25% にだけアンカーを付けた学習ファイルを生成した
+  （`data/pref_split_anchor/train_frac25.jsonl`、実 9,984 行 + アンカー 2,412 行）。
+  最初から混ぜて学習し直すのは同じで、アンカーの重みだけ 1/4 にする。
+
+  ```
+  MODE=train TRAIN_FILE=data/pref_split_anchor/train_frac25.jsonl \
+  EVAL_FILE=data/pref_split_anchor/valid.jsonl EPOCHS=40 LR=3e-4
+  ```
+
+- **案 2（二段階学習）**: 採用版 `pref-sentseq-3e4` の学習済み重みをイメージに
+  同梱し（`models/pref-sentseq-3e4.pt`）、そこからアンカー付きデータで
+  低い学習率・少ないエポックの追学習だけを行う。順位付けの解を保ったまま
+  基準点だけ動かす狙い。`train_pref_sentseq.py --init-from` を追加した
+  （モデル構成は artifact 側から引き継ぐ。学習率とエポックは指定値）。
+
+  ```
+  MODE=train TRAIN_FILE=data/pref_split_anchor/train.jsonl \
+  EVAL_FILE=data/pref_split_anchor/valid.jsonl \
+  INIT_FROM=models/pref-sentseq-3e4.pt EPOCHS=5 LR=3e-5
+  ```
+
+- どちらも成果物の検証は同じ: `scripts/eval_direction_sensitivity.py` で
+  方向感度（逆方向・劣化版の負率）、`make hard-eval-score` の v2b/v2c で
+  人間 vs 機械勝率とペア一致率。現行 sentseq-3e4 の順位付け（勝率 0.708、
+  一致率 0.847）をどこまで保ちながら方向感度を得られるかを見る。
+
 ## 推敲ループの 1 コマンド化（2026-07-26）
 
 生成 → 二軸判定 → 反復 → 打ち切りを `make revise` で回せる（`scripts/revise_loop.py`）。
