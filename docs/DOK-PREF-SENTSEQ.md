@@ -282,6 +282,9 @@ make revise FILE=下書き.md [N=3] [MAX_ITERS=3] [MIN_MARGIN=1.9] [GEN_MODEL=co
   改善停止（1反復の伸びが 0.1 未満）、全候補失格、反復上限。
 - 最良版は `<file>.revised.md`、経過は `<file>.revise-report.json` に出る。
   不合格終了は exit code 2。
+- **入力の粒度は節（見出し単位）**。採点が見るのは pref-sentseq が先頭 128 文、
+  pref-bt が先頭約 512 トークンで、生成だけは全文に及ぶ。長い入力では
+  「推敲は全文、採点は冒頭だけ」の不整合が起きるため、超過時は警告を出す。
 
 ## 実験の進め方（変数を1つずつ動かす）
 

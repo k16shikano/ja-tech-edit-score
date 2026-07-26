@@ -19,6 +19,9 @@ import time
 from pathlib import Path
 
 from pref_scorer import load_scorer
+from sentseq_utils import split_document_sentences
+
+MAX_SENTS = 128  # pref-sentseq が読む文数の上限（それ以降は採点に反映されない）
 
 PROMPT_TEMPLATES = {
   "plain-v1": (
@@ -102,6 +105,16 @@ def main() -> None:
     if args.report
     else draft_path.with_suffix(draft_path.suffix + ".revise-report.json")
   )
+
+  n_sents = len(split_document_sentences(source))
+  if n_sents > MAX_SENTS:
+    print(
+      f"警告: 下書きが {n_sents} 文あり、採点は先頭 {MAX_SENTS} 文"
+      f"（ゲートは先頭約512トークン）しか見ない。生成は全文に及ぶため、"
+      f"それ以降の変更は判定に反映されない。節（見出し単位）に分けての実行を推奨",
+      file=sys.stderr,
+      flush=True,
+    )
 
   primary = load_scorer(Path(args.primary_model))
   gate = load_scorer(Path(args.gate_model))
