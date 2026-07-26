@@ -375,6 +375,7 @@ def train_sentseq_model(
   device: torch.device,
   log_prefix: str = "",
   precomputed_embeddings: dict[str, np.ndarray] | None = None,
+  init_state: dict[str, torch.Tensor] | None = None,
 ) -> tuple[SentSeqRewardModel, dict[str, float], dict[str, float], PreparedSentSeqData]:
   torch.manual_seed(cfg.seed)
   random.seed(cfg.seed)
@@ -420,6 +421,9 @@ def train_sentseq_model(
     max_sents=cfg.max_sents,
   )
   model = SentSeqRewardModel(sent_encoder, feature_dim=feature_dim).to(device)
+  if init_state is not None:
+    model.load_state_dict(init_state)
+    print(f"{log_prefix}warm start: loaded initial weights", flush=True)
   optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=cfg.lr,
@@ -633,6 +637,11 @@ def main() -> None:
   parser.add_argument("--weight-decay", type=float, default=1e-2)
   parser.add_argument("--seed", type=int, default=0)
   parser.add_argument("--device", default="cpu", choices=["cpu", "cuda"])
+  parser.add_argument(
+    "--init-from",
+    default="",
+    help="学習済み model.pt から重みを引き継いで追学習（構成は artifact 側に合わせる）",
+  )
   args = parser.parse_args()
 
   device = resolve_device(args.device)
@@ -641,15 +650,28 @@ def main() -> None:
   if not train_rows or not eval_rows:
     raise SystemExit("train/eval preference pairs are empty after filtering swaps")
 
+  init_state = None
+  init_config: dict = {}
+  if args.init_from:
+    artifact = torch.load(args.init_from, map_location="cpu", weights_only=False)
+    if artifact.get("kind") != "pref-sentseq":
+      raise SystemExit(f"not a pref-sentseq artifact: {args.init_from}")
+    init_state = artifact["model_state_dict"]
+    init_config = artifact["config"]
+    print(f"warm start from: {args.init_from}", flush=True)
+
   cfg = SentSeqTrainConfig(
-    sentence_model_name=args.model,
-    truncate_dim=normalize_truncate_dim(args.truncate_dim),
-    text_prefix=args.text_prefix,
-    max_seq_length=args.max_seq_length,
+    sentence_model_name=init_config.get("sentence_model_name", args.model),
+    truncate_dim=init_config.get("truncate_dim", normalize_truncate_dim(args.truncate_dim)),
+    text_prefix=init_config.get("text_prefix", args.text_prefix),
+    max_seq_length=init_config.get("max_seq_length") or args.max_seq_length,
     encode_batch_size=args.encode_batch_size,
-    d_model=args.d_model,
-    num_layers=args.num_layers,
-    max_sents=args.max_sents,
+    d_model=init_config.get("d_model", args.d_model),
+    nhead=init_config.get("nhead", SentSeqTrainConfig.nhead),
+    num_layers=init_config.get("num_layers", args.num_layers),
+    dim_feedforward=init_config.get("dim_feedforward", SentSeqTrainConfig.dim_feedforward),
+    dropout=init_config.get("dropout", SentSeqTrainConfig.dropout),
+    max_sents=init_config.get("max_sents", args.max_sents),
     batch_size=args.batch_size,
     epochs=args.epochs,
     lr=args.lr,
@@ -662,6 +684,7 @@ def main() -> None:
     eval_rows,
     cfg,
     device=device,
+    init_state=init_state,
   )
   embed_dim = model.encoder.embed_dim
   output_dir = Path(args.output_dir)
@@ -677,6 +700,7 @@ def main() -> None:
     "epochs": cfg.epochs,
     "lr": cfg.lr,
     "batch_size": cfg.batch_size,
+    "init_from": args.init_from or None,
     "train_pairs": len(train_rows),
     "eval_pairs": len(eval_rows),
     **train_metrics,
