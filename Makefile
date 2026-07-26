@@ -56,7 +56,7 @@ TRANSITION_OUTPUT_DIR := $(ROOT)outputs/paragraph-transition
 STRUCTURE_PROFILE := $(DATA_DIR)/section_edit_profile.jsonl
 STRUCTURE_EVAL_DIR := $(ROOT)outputs/structure_eval
 
-.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-ce train-sentseq eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer
+.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-ce train-sentseq eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer calibrate-margins
 
 help:
 	@echo "Targets:"
@@ -83,6 +83,7 @@ help:
 	@echo "  make compare SOURCE=... CANDIDATE_A=... CANDIDATE_B=..."
 	@echo "  make score-bt SOURCE=... CANDIDATE=...  # BT 絶対スコア"
 	@echo "  make rank SOURCE=... CANDIDATE_FILES='a.txt b.txt'  # Best-of-N（既定: sentseq 主軸 + bt ゲートの二軸）"
+	@echo "  make calibrate-margins  # 人間編集のマージン分布（合格閾値の根拠）"
 	@echo "  make converge CURRENT=... REVISED=... [MODE=pair|bt]  # 収束判定"
 	@echo "  make edit-sft-data  # 系統1フェーズ0: chat SFT データ書き出し"
 	@echo "  make edit-sft MODEL=<hf-id> [LIMIT=0] [EPOCHS=2]  # 系統1フェーズ1: QLoRA SFT（GPU）"
@@ -313,6 +314,14 @@ score-bt:
 SENTSEQ_BEST_DIR := $(ROOT)outputs/pref-sentseq-3e4
 RANK_MODEL ?= $(if $(wildcard $(SENTSEQ_BEST_DIR)),$(SENTSEQ_BEST_DIR),$(if $(wildcard $(CE_OUTPUT_DIR)),$(CE_OUTPUT_DIR),$(BT_OUTPUT_DIR)))
 GATE_MODEL ?= $(if $(and $(findstring pref-sentseq,$(RANK_MODEL)),$(wildcard $(BT_OUTPUT_DIR))),$(BT_OUTPUT_DIR),)
+
+# 人間編集が下書きから稼ぐマージン分布を測り、合格閾値の根拠を出す
+calibrate-margins:
+	$(PYTHON) scripts/calibrate_acceptance_margins.py \
+	  --pairs "$(or $(PAIRS),$(ROOT)data/pref_split/valid.jsonl)" \
+	  --primary-model "$(SENTSEQ_BEST_DIR)" \
+	  --gate-model "$(BT_OUTPUT_DIR)" \
+	  --out "$(ROOT)outputs/acceptance_margin_calibration.json"
 
 rank:
 	@test -n "$(SOURCE)$(SOURCE_FILE)" || (echo "SOURCE is required (text or use SOURCE_FILE=)" && exit 1)
