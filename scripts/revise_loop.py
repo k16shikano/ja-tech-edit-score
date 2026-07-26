@@ -8,8 +8,11 @@
 pref-sentseq のスコアで順位付け、pref-bt をゲート（元の節に対して
 細部が悪化した案を失格）として最良案を選ぶ。
 
-マージンはすべて「元の節」を基準に測る。合格ライン（--min-margin）は
-`make calibrate-margins` の人間編集マージン分布（中央値 1.9、p25 0.1）を根拠に選ぶ。
+マージンはすべて「元の節」を基準に測る（margin = s(節, 案) - s(節, 節)）。
+基準と候補が同一という学習にない入力を含むため、変更しただけで正の
+マージンが付く偏りがある。合格ライン（--min-margin）は `make calibrate-margins`
+の self 基準の人間編集マージン分布（中央値 3.7、p25 0.4）を根拠に選ぶが、
+正のマージンは改善の証明にならない点に注意。
 合格するか、改善が止まるか、反復上限に達したら次の節へ移る。
 """
 from __future__ import annotations
@@ -212,7 +215,7 @@ def main() -> None:
   parser.add_argument("--model", default="composer-2.5", help="Cursor agent model id")
   parser.add_argument("--n-candidates", type=int, default=3, help="1反復あたりの生成数")
   parser.add_argument("--max-iters", type=int, default=3, help="節ごとの反復上限")
-  parser.add_argument("--min-margin", type=float, default=1.9, help="合格ライン（sentseq、元の節基準）")
+  parser.add_argument("--min-margin", type=float, default=3.7, help="合格ライン（sentseq、元の節基準、self 基準分布の中央値）")
   parser.add_argument("--gate-min-margin", type=float, default=0.0, help="btゲート（元の節基準）")
   parser.add_argument(
     "--min-iter-gain",

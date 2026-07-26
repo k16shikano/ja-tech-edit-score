@@ -2,13 +2,17 @@
 """合格閾値の較正: 人間編集が下書きから稼ぐマージンの分布を測る。
 
 検証セットの「下書き → 人間編集」ペアを主モデル（pref-sentseq）とゲート
-（pref-bt）で採点し、margin = s(source, 人間編集) - s(source, 下書き) の分布
-（パーセンタイル）を出す。この分布との比較で「人間の編集に十分近いか」を
-判定する閾値を選ぶ。
+（pref-bt）で採点し、2 種類のマージン分布（パーセンタイル）を出す。
+
+- pair 基準: s(source_text, 人間編集) - s(source_text, 下書き)。
+  学習・検証と同じ形（共通の基準に対する 2 候補の差）。
+- self 基準: s(下書き, 人間編集) - s(下書き, 下書き)。
+  運用時（revise ループ・採点 Web サービス）の定義。基準と候補が同一という
+  学習にない入力を含むため、「変更しただけで加点」の偏りが乗る。閾値は
+  この偏りを超える水準に置く必要がある。
 
 下書きには候補欄の棄却側（candidate_b、クリーンな下書きテキスト）を使う。
-source_text には参照情報の後注が付いており、運用時（make rank に渡す
-クリーンな下書き）のマージンと一致しないため。
+source_text には参照情報の後注が付いており、運用時のテキストと一致しないため。
 """
 from __future__ import annotations
 
@@ -37,23 +41,33 @@ def human_edit_rows(path: str) -> list[dict]:
   return rows
 
 
+def distribution(margins: list[float]) -> dict:
+  arr = np.asarray(margins, dtype=np.float64)
+  return {
+    "n_pairs": int(arr.size),
+    "positive_rate": float((arr > 0).mean()),
+    "mean": float(arr.mean()),
+    "percentiles": {f"p{p}": float(np.percentile(arr, p)) for p in PERCENTILES},
+  }
+
+
 def margins_for_model(model_dir: Path, rows: list[dict]) -> dict:
   scorer = load_scorer(model_dir)
-  margins: list[float] = []
+  pair_margins: list[float] = []
+  self_margins: list[float] = []
   for row in rows:
     source = row["source_text"]
     edit = row["candidate_a"]
     draft = row["candidate_b"]
     s_edit, s_draft = scorer.score(source, [edit, draft], batch_size=4)
-    margins.append(float(s_edit - s_draft))
-  arr = np.asarray(margins, dtype=np.float64)
+    pair_margins.append(float(s_edit - s_draft))
+    s_edit_self, s_draft_self = scorer.score(draft, [edit, draft], batch_size=4)
+    self_margins.append(float(s_edit_self - s_draft_self))
   return {
     "scorer": scorer.kind,
     "model_dir": str(model_dir),
-    "n_pairs": int(arr.size),
-    "positive_rate": float((arr > 0).mean()),
-    "mean": float(arr.mean()),
-    "percentiles": {f"p{p}": float(np.percentile(arr, p)) for p in PERCENTILES},
+    **distribution(pair_margins),
+    "self_baseline": distribution(self_margins),
   }
 
 
