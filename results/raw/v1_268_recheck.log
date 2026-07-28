@@ -1,0 +1,81 @@
+{
+  "model_a": {
+    "report": "/home/k16/dev/ja-tech-edit-score/outputs/hard_eval_v1_report_sentseq40.json",
+    "checkpoint": "outputs/pref-sentseq-40",
+    "model_config": "lr1e-4-ep40",
+    "top1_correct_items": [
+      "he-v1-01",
+      "he-v1-02",
+      "he-v1-03",
+      "he-v1-04",
+      "he-v1-05",
+      "he-v1-06",
+      "he-v1-07",
+      "he-v1-08",
+      "he-v1-11",
+      "he-v1-12",
+      "he-v1-13",
+      "he-v1-14",
+      "he-v1-15",
+      "he-v1-17",
+      "he-v1-18",
+      "he-v1-19",
+      "he-v1-20"
+    ],
+    "top1_hits": 17,
+    "pairwise_agree": 268,
+    "pairwise_total": 300
+  },
+  "model_b": {
+    "report": "/home/k16/dev/ja-tech-edit-score/outputs/hard_eval_v1_report_sentseq3e4.json",
+    "checkpoint": "outputs/pref-sentseq-3e4",
+    "model_config": "lr3e-4-ep40",
+    "top1_correct_items": [
+      "he-v1-01",
+      "he-v1-02",
+      "he-v1-03",
+      "he-v1-04",
+      "he-v1-05",
+      "he-v1-06",
+      "he-v1-07",
+      "he-v1-08",
+      "he-v1-11",
+      "he-v1-12",
+      "he-v1-14",
+      "he-v1-15",
+      "he-v1-17",
+      "he-v1-18",
+      "he-v1-19",
+      "he-v1-20"
+    ],
+    "top1_hits": 16,
+    "pairwise_agree": 268,
+    "pairwise_total": 300
+  },
+  "both_top1_correct_items": [
+    "he-v1-01",
+    "he-v1-02",
+    "he-v1-03",
+    "he-v1-04",
+    "he-v1-05",
+    "he-v1-06",
+    "he-v1-07",
+    "he-v1-08",
+    "he-v1-11",
+    "he-v1-12",
+    "he-v1-14",
+    "he-v1-15",
+    "he-v1-17",
+    "he-v1-18",
+    "he-v1-19",
+    "he-v1-20"
+  ],
+  "a_only_top1_items": [
+    "he-v1-13"
+  ],
+  "b_only_top1_items": [],
+  "pairwise_judgment_disagreements": 8,
+  "identical_pairwise_judgments": false,
+  "same_pairwise_count_but_different_judgments": true
+}
+wrote /home/k16/dev/ja-tech-edit-score/results/raw/v1_sentseq_268_recheck.json

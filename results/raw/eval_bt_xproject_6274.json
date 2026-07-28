@@ -1,0 +1,123 @@
+{
+  "embedding_model": "cl-nagoya/ruri-v3-30m",
+  "text_prefix": "文章: ",
+  "max_seq_length": 512,
+  "total_pairs": 6274,
+  "micro_pair_accuracy": 0.9730634360526982,
+  "macro_pair_accuracy": 0.959985056093761,
+  "micro_bt_loss": 0.07288826826902253,
+  "folds": [
+    {
+      "project_id": "ts-tapl",
+      "eval_pairs": 1225,
+      "train_pairs": 5049,
+      "pair_accuracy": 0.9534693956375122,
+      "bt_loss": 0.1265745759010315,
+      "mean_margin": 10.263319969177246
+    },
+    {
+      "project_id": "eff",
+      "eval_pairs": 1066,
+      "train_pairs": 5208,
+      "pair_accuracy": 0.9784240126609802,
+      "bt_loss": 0.05075973644852638,
+      "mean_margin": 25.885923385620117
+    },
+    {
+      "project_id": "physical-debug",
+      "eval_pairs": 901,
+      "train_pairs": 5373,
+      "pair_accuracy": 0.9955604672431946,
+      "bt_loss": 0.011050482280552387,
+      "mean_margin": 31.802560806274414
+    },
+    {
+      "project_id": "compute-society",
+      "eval_pairs": 881,
+      "train_pairs": 5393,
+      "pair_accuracy": 0.9852440357208252,
+      "bt_loss": 0.04051592946052551,
+      "mean_margin": 31.68514633178711
+    },
+    {
+      "project_id": "compute-programming",
+      "eval_pairs": 496,
+      "train_pairs": 5778,
+      "pair_accuracy": 0.9717742204666138,
+      "bt_loss": 0.08738695085048676,
+      "mean_margin": 15.058074951171875
+    },
+    {
+      "project_id": "what-is-monad",
+      "eval_pairs": 408,
+      "train_pairs": 5866,
+      "pair_accuracy": 0.9558823704719543,
+      "bt_loss": 0.1332574039697647,
+      "mean_margin": 15.02193546295166
+    },
+    {
+      "project_id": "computer-arch-revisit",
+      "eval_pairs": 272,
+      "train_pairs": 6002,
+      "pair_accuracy": 0.9816176295280457,
+      "bt_loss": 0.057779379189014435,
+      "mean_margin": 22.456449508666992
+    },
+    {
+      "project_id": "compute-unconventional",
+      "eval_pairs": 251,
+      "train_pairs": 6023,
+      "pair_accuracy": 0.9681274890899658,
+      "bt_loss": 0.05686536058783531,
+      "mean_margin": 20.43828010559082
+    },
+    {
+      "project_id": "compute-typetheory",
+      "eval_pairs": 217,
+      "train_pairs": 6057,
+      "pair_accuracy": 0.9861751198768616,
+      "bt_loss": 0.07899951189756393,
+      "mean_margin": 17.058612823486328
+    },
+    {
+      "project_id": "raft-practical",
+      "eval_pairs": 204,
+      "train_pairs": 6070,
+      "pair_accuracy": 0.9656862616539001,
+      "bt_loss": 0.13643397390842438,
+      "mean_margin": 8.954181671142578
+    },
+    {
+      "project_id": "cs-for-ai-ages",
+      "eval_pairs": 168,
+      "train_pairs": 6106,
+      "pair_accuracy": 1.0,
+      "bt_loss": 0.004465547855943441,
+      "mean_margin": 32.748348236083984
+    },
+    {
+      "project_id": "ir-system",
+      "eval_pairs": 83,
+      "train_pairs": 6191,
+      "pair_accuracy": 0.9638554453849792,
+      "bt_loss": 0.04570154845714569,
+      "mean_margin": 20.135141372680664
+    },
+    {
+      "project_id": "compute-whatis",
+      "eval_pairs": 78,
+      "train_pairs": 6196,
+      "pair_accuracy": 0.8589743375778198,
+      "bt_loss": 0.27910324931144714,
+      "mean_margin": 7.697179317474365
+    },
+    {
+      "project_id": "lean-from-zero",
+      "eval_pairs": 24,
+      "train_pairs": 6250,
+      "pair_accuracy": 0.875,
+      "bt_loss": 0.14563243091106415,
+      "mean_margin": 6.9142303466796875
+    }
+  ]
+}

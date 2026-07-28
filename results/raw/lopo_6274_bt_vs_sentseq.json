@@ -1,0 +1,133 @@
+{
+  "data_version": "pref_dataset unique preference pairs = 6274",
+  "pref_bt": {
+    "report": "/home/k16/dev/ja-tech-edit-score/results/raw/eval_bt_xproject_6274.json",
+    "total_pairs": 6274,
+    "micro_pair_accuracy": 0.9730634360526982,
+    "macro_pair_accuracy": 0.959985056093761,
+    "n_folds": 14,
+    "embedding_model": "cl-nagoya/ruri-v3-30m",
+    "seed": 0,
+    "project_macro_bootstrap": {
+      "metric": "macro_accuracy_over_projects",
+      "observed": 0.959985056093761,
+      "ci_95_lower": 0.9371766015887261,
+      "ci_95_upper": 0.9783612222543785,
+      "n_bootstrap": 10000,
+      "seed": 0,
+      "note": "project as resampling unit; not pair-level"
+    }
+  },
+  "pref_sentseq": {
+    "report": "/home/k16/dev/ja-tech-edit-score/outputs/eval_sentseq_xproject.json",
+    "total_pairs": 6274,
+    "micro_pair_accuracy": 0.9046860062794811,
+    "macro_pair_accuracy": 0.9100822338036129,
+    "n_folds": 14,
+    "d_model": 256,
+    "num_layers": 2,
+    "epochs": 40,
+    "lr": 0.0003
+  },
+  "per_project": [
+    {
+      "project_id": "ts-tapl",
+      "n_test": 1225,
+      "bt_accuracy": 0.9534693956375122,
+      "sentseq_accuracy": 0.8612244725227356,
+      "difference_bt_minus_sentseq": 0.09224492311477661
+    },
+    {
+      "project_id": "eff",
+      "n_test": 1066,
+      "bt_accuracy": 0.9784240126609802,
+      "sentseq_accuracy": 0.8424015045166016,
+      "difference_bt_minus_sentseq": 0.13602250814437866
+    },
+    {
+      "project_id": "physical-debug",
+      "n_test": 901,
+      "bt_accuracy": 0.9955604672431946,
+      "sentseq_accuracy": 0.9766925573348999,
+      "difference_bt_minus_sentseq": 0.018867909908294678
+    },
+    {
+      "project_id": "compute-society",
+      "n_test": 881,
+      "bt_accuracy": 0.9852440357208252,
+      "sentseq_accuracy": 0.9421112537384033,
+      "difference_bt_minus_sentseq": 0.043132781982421875
+    },
+    {
+      "project_id": "compute-programming",
+      "n_test": 496,
+      "bt_accuracy": 0.9717742204666138,
+      "sentseq_accuracy": 0.9112903475761414,
+      "difference_bt_minus_sentseq": 0.06048387289047241
+    },
+    {
+      "project_id": "what-is-monad",
+      "n_test": 408,
+      "bt_accuracy": 0.9558823704719543,
+      "sentseq_accuracy": 0.8872548937797546,
+      "difference_bt_minus_sentseq": 0.06862747669219971
+    },
+    {
+      "project_id": "computer-arch-revisit",
+      "n_test": 272,
+      "bt_accuracy": 0.9816176295280457,
+      "sentseq_accuracy": 0.9485294222831726,
+      "difference_bt_minus_sentseq": 0.03308820724487305
+    },
+    {
+      "project_id": "compute-unconventional",
+      "n_test": 251,
+      "bt_accuracy": 0.9681274890899658,
+      "sentseq_accuracy": 0.9322709441184998,
+      "difference_bt_minus_sentseq": 0.035856544971466064
+    },
+    {
+      "project_id": "compute-typetheory",
+      "n_test": 217,
+      "bt_accuracy": 0.9861751198768616,
+      "sentseq_accuracy": 0.9262672662734985,
+      "difference_bt_minus_sentseq": 0.05990785360336304
+    },
+    {
+      "project_id": "raft-practical",
+      "n_test": 204,
+      "bt_accuracy": 0.9656862616539001,
+      "sentseq_accuracy": 0.9019607901573181,
+      "difference_bt_minus_sentseq": 0.06372547149658203
+    },
+    {
+      "project_id": "cs-for-ai-ages",
+      "n_test": 168,
+      "bt_accuracy": 1.0,
+      "sentseq_accuracy": 0.9702380895614624,
+      "difference_bt_minus_sentseq": 0.029761910438537598
+    },
+    {
+      "project_id": "ir-system",
+      "n_test": 83,
+      "bt_accuracy": 0.9638554453849792,
+      "sentseq_accuracy": 0.9518072009086609,
+      "difference_bt_minus_sentseq": 0.01204824447631836
+    },
+    {
+      "project_id": "compute-whatis",
+      "n_test": 78,
+      "bt_accuracy": 0.8589743375778198,
+      "sentseq_accuracy": 0.7307692170143127,
+      "difference_bt_minus_sentseq": 0.12820512056350708
+    },
+    {
+      "project_id": "lean-from-zero",
+      "n_test": 24,
+      "bt_accuracy": 0.875,
+      "sentseq_accuracy": 0.9583333134651184,
+      "difference_bt_minus_sentseq": -0.08333331346511841
+    }
+  ],
+  "legacy_bt_lopo_note": "outputs/eval_bt_xproject.json has total_pairs=5887 (pre-section-pair). Do not compare that file to sentseq 6274."
+}

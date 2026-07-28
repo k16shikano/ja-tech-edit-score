@@ -1,0 +1,12 @@
+train length direction: {"n_unique_pairs": 4992, "edit_longer": 1669, "edit_shorter": 3089, "equal": 234, "preferred_from_train_majority": "shorter"}
+v1/pref-bt/default: orig=9/20 long=17 short=1 resid=2 item_rho_med=0.6087595874350709 pooled_rho=-0.06807609215810305
+v1/pref-sentseq/lr1e-4-ep40: orig=17/20 long=17 short=1 resid=8 item_rho_med=0.9352453999505301 pooled_rho=0.8806723639285913
+v1/pref-sentseq/lr3e-4-ep40: orig=16/20 long=17 short=1 resid=5 item_rho_med=0.9352453999505301 pooled_rho=0.8996101728530956
+v2b/pref-bt/default: orig=16/24 long=18 short=3 resid=7 item_rho_med=0.4999999999999999 pooled_rho=0.16217346272010533
+v2b/pref-sentseq/lr1e-4-ep40: orig=15/24 long=18 short=3 resid=5 item_rho_med=0.4999999999999999 pooled_rho=0.5752052316805322
+v2b/pref-sentseq/lr3e-4-ep40: orig=17/24 long=18 short=3 resid=7 item_rho_med=0.4999999999999999 pooled_rho=0.728325282451067
+v2c/pref-bt/default: orig=14/24 long=16 short=3 resid=7 item_rho_med=0.4999999999999999 pooled_rho=0.1206361462081893
+v2c/pref-sentseq/lr1e-4-ep40: orig=15/24 long=16 short=3 resid=6 item_rho_med=0.4999999999999999 pooled_rho=0.6978307385831222
+v2c/pref-sentseq/lr3e-4-ep40: orig=17/24 long=16 short=3 resid=6 item_rho_med=0.4999999999999999 pooled_rho=0.7726373704360276
+wrote /home/k16/dev/ja-tech-edit-score/results/length_control_results.csv
+wrote /home/k16/dev/ja-tech-edit-score/results/raw/length_control_detail.json

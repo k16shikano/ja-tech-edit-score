@@ -1,0 +1,7 @@
+Matplotlib is building the font cache; this may take a moment.
+wrote /home/k16/dev/ja-tech-edit-score/results/probe_layer_results.csv (74 rows)
+NOTE: all layers were searched; best layer is post-hoc selected (upward selection bias). Only mean pooling was used for this full run; no claim that mean pooling is optimal.
+wrote /home/k16/dev/ja-tech-edit-score/results/figures/probe_layer_accuracy.pdf
+wrote /home/k16/dev/ja-tech-edit-score/results/figures/probe_layer_accuracy.svg
+NOTE: reading probe exists but n_pairs=64 (not full 6055); not merged into primary CSV.
+NOTE: norms probe exists but n_pairs=64 (not full 6055); not merged into primary CSV.
