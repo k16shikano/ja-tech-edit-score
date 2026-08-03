@@ -217,7 +217,7 @@
 
   <div class="cards">
     <div class="card" id="card-primary" style="display:none">
-      <h2>全体の質（pref-sentseq）</h2>
+      <h2>全体の質（pref-sentseq-keep）</h2>
       <div class="model" id="primary-model"></div>
       <div class="margin-row">
         <span class="margin-value" id="primary-margin"></span>
@@ -227,7 +227,7 @@
       <div class="gauge" id="primary-gauge"></div>
     </div>
     <div class="card" id="card-gate" style="display:none">
-      <h2>細部の質ゲート（pref-bt）</h2>
+      <h2>細部の質ゲート（pref-bt-keep）</h2>
       <div class="model" id="gate-model"></div>
       <div class="margin-row">
         <span class="margin-value" id="gate-margin"></span>
@@ -392,7 +392,7 @@ $("run").addEventListener("click", async () => {
       v.textContent = "合格: 全体の質が合格ラインに達し、細部の悪化もありません。";
     } else if (!data.verdict.pass_gate) {
       v.className = "ng";
-      v.textContent = "不合格: pref-bt のゲートで、細部（語彙や文の単位）の悪化が検出されました。";
+      v.textContent = "不合格: pref-bt-keep のゲートで、細部（語彙や文の単位）の悪化が検出されました。";
     } else {
       v.className = "ng";
       v.textContent = "不合格: 全体の質の改善が検出されませんでした（マージンが合格ライン未満）。";

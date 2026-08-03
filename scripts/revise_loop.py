@@ -2,16 +2,16 @@
 """生成 → 二軸判定 → 反復の推敲ループを 1 コマンドで回す。
 
 入力ファイルを見出し単位の節に分割し、節ごとにループを回して全体を組み直す。
-採点モデル（pref-sentseq / pref-bt）の学習データが節単位なので、これが正しい粒度である。
+採点モデル（pref-sentseq-keep / pref-bt-keep）の学習データが節・hunk 単位なので、これが正しい粒度である。
 
 各反復で、節の現版から Cursor SDK で推敲案を複数生成し、
-pref-sentseq のスコアで順位付け、pref-bt をゲート（元の節に対して
+pref-sentseq-keep のスコアで順位付け、pref-bt-keep をゲート（元の節に対して
 細部が悪化した案を失格）として最良案を選ぶ。
 
 マージンはすべて「元の節」を基準に測る（margin = s(節, 案) - s(節, 節)）。
 基準と候補が同一という学習にない入力を含むため、変更しただけで正の
 マージンが付く偏りがある。合格ライン（--min-margin）は `make calibrate-margins`
-の self 基準の人間編集マージン分布（中央値 3.7、p25 0.4）を根拠に選ぶが、
+の self 基準の人間編集マージン分布（中央値 5.5、p25 3.1；節 keep valid）を根拠に選ぶが、
 正のマージンは改善の証明にならない点に注意。
 合格するか、改善が止まるか、反復上限に達したら次の節へ移る。
 """
@@ -215,7 +215,7 @@ def main() -> None:
   parser.add_argument("--model", default="composer-2.5", help="Cursor agent model id")
   parser.add_argument("--n-candidates", type=int, default=3, help="1反復あたりの生成数")
   parser.add_argument("--max-iters", type=int, default=3, help="節ごとの反復上限")
-  parser.add_argument("--min-margin", type=float, default=3.7, help="合格ライン（sentseq、元の節基準、self 基準分布の中央値）")
+  parser.add_argument("--min-margin", type=float, default=5.5, help="合格ライン（sentseq-keep、元の節基準、self 基準分布の中央値）")
   parser.add_argument("--gate-min-margin", type=float, default=0.0, help="btゲート（元の節基準）")
   parser.add_argument(
     "--min-iter-gain",
@@ -235,8 +235,8 @@ def main() -> None:
     default=DEFAULT_SKILLS,
     help="生成プロンプトに規範として同梱するスキル名（カンマ区切り、'none' で無効）",
   )
-  parser.add_argument("--primary-model", default="outputs/pref-sentseq-3e4")
-  parser.add_argument("--gate-model", default="outputs/pref-bt")
+  parser.add_argument("--primary-model", default="outputs/pref-sentseq-keep")
+  parser.add_argument("--gate-model", default="outputs/pref-bt-keep")
   args = parser.parse_args()
 
   api_key = os.environ.get("CURSOR_API_KEY", "").strip()

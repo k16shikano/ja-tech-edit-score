@@ -1,17 +1,29 @@
 # Fly.io 採点サービス用。学習データや巨大成果物をコンテキストから外す。
+# data/ は子を個別に除外する（親ごと data だと ! で戻せない）
 .git
 .venv
 __pycache__
 *.pyc
 .cursor
-data
+data/*
+!data/pref_keep_split_hunk/
+!data/pref_keep_split_hunk/**
+!data/pref_keep_split_section/
+!data/pref_keep_split_section/**
+!data/pref_keep/
+!data/pref_keep/build_report_hunk.json
+!data/pref_keep/build_report_section.json
 docs
 *.md
 !docs/FLY-SERVE.md
 outputs/pref-ce*
 outputs/pref-bt-*
+!outputs/pref-bt-keep
+!outputs/pref-bt-keep/**
 outputs/pref-sentseq
 outputs/pref-sentseq-*
+!outputs/pref-sentseq-keep
+!outputs/pref-sentseq-keep/**
 !outputs/pref-sentseq-3e4
 !outputs/pref-sentseq-3e4/**
 !outputs/pref-sentseq-anchor-2stage-v2
@@ -31,3 +43,4 @@ scripts/*
 !scripts/sentseq_utils.py
 !scripts/train_pref_bt.py
 !scripts/train_pref_sentseq.py
+!scripts/dok_pref_keep.sh

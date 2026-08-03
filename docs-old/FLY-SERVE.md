@@ -1,14 +1,20 @@
 # Fly.io への採点 Web 公開
 
-CPU 上で三軸採点（`pref-sentseq-3e4` / `pref-bt` / 方向検出）を公開する手順。
+CPU 上で三軸採点を公開する手順。
+
+- 主軸: `outputs/pref-sentseq-keep`（節 keep の文列）
+- ゲート: `outputs/pref-bt-keep`（hunk keep の BT）
+- 方向: `outputs/pref-sentseq-anchor-2stage-v2`
+
+旧 `pref-sentseq-3e4` / `pref-bt` は使わない。
 
 ## 前提
 
 - [flyctl](https://fly.io/docs/flyctl/install/) が入っていること
 - `fly auth login` 済みであること
 - 次の成果物がローカルにあること
-  - `outputs/pref-sentseq-3e4/`
-  - `outputs/pref-bt/`
+  - `outputs/pref-sentseq-keep/`
+  - `outputs/pref-bt-keep/`
   - `outputs/pref-sentseq-anchor-2stage-v2/`
   - `outputs/acceptance_margin_calibration.json`
 
@@ -32,10 +38,13 @@ fly deploy
 
 | 変数 | 既定 | 意味 |
 |------|------|------|
+| `PRIMARY_MODEL` | `/app/outputs/pref-sentseq-keep` | 主軸 |
+| `GATE_MODEL` | `/app/outputs/pref-bt-keep` | ゲート |
+| `DIRECTION_MODEL` | `/app/outputs/pref-sentseq-anchor-2stage-v2` | 方向検出（`none` で無効） |
 | `RATE_LIMIT_PER_IP` | 10 | IP あたりの採点回数上限 |
 | `RATE_LIMIT_WINDOW_SECONDS` | 86400 | 上限の窓（秒） |
 | `MAX_TEXT_CHARS` | 8000 | 下書き・推敲それぞれの最大文字数 |
-| `MIN_MARGIN` / `GATE_MIN_MARGIN` | 3.7 / 0.0 | 合格ライン |
+| `MIN_MARGIN` / `GATE_MIN_MARGIN` | 5.5 / 0.0 | 合格ライン（主軸は節 keep valid の self p50） |
 
 変更例:
 

@@ -127,6 +127,14 @@ def eval_pair_accuracy(
   }
 
 
+def resolve_device(name: str) -> str:
+  if name == "cuda":
+    if not torch.cuda.is_available():
+      raise SystemExit("--device cuda requested but CUDA is not available")
+    return "cuda"
+  return "cpu"
+
+
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--model", default="cl-nagoya/ruri-v3-30m")
@@ -141,6 +149,7 @@ def main() -> None:
   parser.add_argument("--lr", type=float, default=1e-2)
   parser.add_argument("--weight-decay", type=float, default=1e-3)
   parser.add_argument("--seed", type=int, default=0)
+  parser.add_argument("--device", default="cpu", choices=["cpu", "cuda"])
   args = parser.parse_args()
 
   train_rows = unique_preference_pairs(load_jsonl(args.train_file))
@@ -148,8 +157,9 @@ def main() -> None:
   if not train_rows or not eval_rows:
     raise SystemExit("train/eval preference pairs are empty after filtering swaps")
 
+  device = resolve_device(args.device)
   truncate_dim = normalize_truncate_dim(args.truncate_dim)
-  encoder = SentenceTransformer(args.model, device="cpu", truncate_dim=truncate_dim)
+  encoder = SentenceTransformer(args.model, device=device, truncate_dim=truncate_dim)
   if args.max_seq_length > 0:
     encoder.max_seq_length = args.max_seq_length
 
@@ -197,6 +207,7 @@ def main() -> None:
     "embedding_model": args.model,
     "text_prefix": args.text_prefix,
     "max_seq_length": artifact["max_seq_length"],
+    "device": device,
     "train_pairs": len(train_rows),
     "eval_pairs": len(eval_rows),
     **{f"train_{k}": v for k, v in train_metrics.items()},

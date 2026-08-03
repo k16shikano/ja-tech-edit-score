@@ -4,6 +4,9 @@
 pref-bt（文書全体を 1 ベクトル、LOPO micro 0.975）や pref-ce（cross-encoder）と違い、
 **文の順序と段落境界が入力構造として残る** ことを狙う。
 
+**データ（2026-08）**: 現行の採用モデル `outputs/pref-sentseq-3e4` は hunk＋旧節（main 先端比較を含む）で学習した。
+手順・ハイパーパラの記録は本ドキュメントを正とするが、**次の学習は人手採用の節で取り直す**（旧 `section_pair_mined` は使わない）。方針は [ROADMAP.md](ROADMAP.md) 追記。
+
 ## モデル設計
 
 1. **文分割**（`scripts/sentseq_utils.py`、バージョン `v1`）
@@ -285,7 +288,7 @@ self 基準では人間編集の 651 ペア全件が正のマージンになる�
 ## 採点 Web サービス（2026-07-26）
 
 下書きと推敲を貼り付けて二軸のマージンを見るローカル Web サービス
-（`make serve` → http://127.0.0.1:8300、`scripts/score_server.py` + `web/index.html`）。
+（`make serve` → 0.0.0.0:8300、`scripts/score_server.py` + `web/index.html`）。
 
 - 点数は self 基準のマージン。上記の偏りがあるため、UI は絶対値ではなく
   self 分布上の百分位（ゲージ）を主表示にしている。

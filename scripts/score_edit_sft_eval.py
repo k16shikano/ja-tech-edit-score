@@ -2,7 +2,8 @@
 """編集モデル評価の採点（手元 CPU）。
 
 DOK で生成した adapter.jsonl / base_norms.jsonl などを突き合わせ、
-BT 報酬 s(draft, candidate) と長さ比で比較する。
+報酬モデル s(draft, candidate) と長さ比で比較する。
+pref-bt / pref-ce / pref-sentseq を --model で自動判別する。
 """
 from __future__ import annotations
 
@@ -77,7 +78,16 @@ def main() -> None:
     default="outputs/edit-sft-eval",
     help="adapter.jsonl 等があるディレクトリ",
   )
-  parser.add_argument("--bt-model", default="outputs/pref-bt")
+  parser.add_argument(
+    "--model",
+    default="",
+    help="報酬モデル dir（pref-bt / pref-ce / pref-sentseq）。未指定時は --bt-model",
+  )
+  parser.add_argument(
+    "--bt-model",
+    default="outputs/pref-bt",
+    help="後方互換。--model 未指定時のみ使う",
+  )
   parser.add_argument(
     "--modes",
     default="adapter,base_norms,gold",
@@ -87,7 +97,7 @@ def main() -> None:
   parser.add_argument("--report", default="")
   args = parser.parse_args()
 
-  from pref_bt_runtime import load_bt_model, score_candidates_bt
+  from pref_scorer import load_scorer
 
   eval_dir = Path(args.eval_dir)
   mode_names = [m.strip() for m in args.modes.split(",") if m.strip()]
@@ -108,7 +118,8 @@ def main() -> None:
 
   # gold / draft はいずれかのファイルから
   first = next(iter(tables.values()))
-  loaded = load_bt_model(Path(args.bt_model))
+  model_dir = Path(args.model) if args.model else Path(args.bt_model)
+  scorer = load_scorer(model_dir)
 
   per_id: list[dict] = []
   score_lists: dict[str, list[float]] = defaultdict(list)
@@ -127,9 +138,7 @@ def main() -> None:
       else:
         candidates.append(tables[mode][eid]["generated"])
         labels.append(mode)
-    scores = score_candidates_bt(
-      loaded, draft, candidates, batch_size=args.batch_size
-    )
+    scores = scorer.score(draft, candidates, batch_size=args.batch_size)
     row = {
       "id": eid,
       "project_id": project_id,
@@ -157,6 +166,8 @@ def main() -> None:
   summary: dict = {
     "n": len(common_ids),
     "modes": mode_names,
+    "scorer_kind": scorer.kind,
+    "model_dir": str(model_dir),
     "mean_score": {k: float(np.mean(v)) for k, v in score_lists.items()},
     "mean_length_ratio": {k: float(np.mean(v)) for k, v in len_ratio_lists.items()},
   }
@@ -189,9 +200,10 @@ def main() -> None:
 
   md_path = report_path.with_suffix(".md")
   lines = [
-    "# Edit-SFT evaluation (BT reward)",
+    f"# Edit-SFT evaluation ({scorer.kind})",
     "",
     f"- n: {summary['n']}",
+    f"- model: `{model_dir}` ({scorer.kind})",
     f"- mean_score: {json.dumps(summary['mean_score'], ensure_ascii=False)}",
     f"- mean_length_ratio: {json.dumps(summary['mean_length_ratio'], ensure_ascii=False)}",
   ]

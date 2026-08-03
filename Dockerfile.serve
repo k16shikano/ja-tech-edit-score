@@ -8,14 +8,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HF_HOME=/app/.cache/huggingface \
     TRANSFORMERS_CACHE=/app/.cache/huggingface \
     SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence-transformers \
-    PRIMARY_MODEL=/app/outputs/pref-sentseq-3e4 \
-    GATE_MODEL=/app/outputs/pref-bt \
+    PRIMARY_MODEL=/app/outputs/pref-sentseq-keep \
+    GATE_MODEL=/app/outputs/pref-bt-keep \
     DIRECTION_MODEL=/app/outputs/pref-sentseq-anchor-2stage-v2 \
     CALIBRATION_PATH=/app/outputs/acceptance_margin_calibration.json \
     RATE_LIMIT_PER_IP=10 \
     RATE_LIMIT_WINDOW_SECONDS=86400 \
     MAX_TEXT_CHARS=8000 \
-    MIN_MARGIN=3.7 \
+    MIN_MARGIN=5.5 \
     GATE_MIN_MARGIN=0.0
 
 RUN apt-get update \
@@ -42,8 +42,8 @@ COPY scripts/score_server.py \
      scripts/
 
 COPY web/index.html web/index.html
-COPY outputs/pref-sentseq-3e4/model.pt outputs/pref-sentseq-3e4/metrics.json outputs/pref-sentseq-3e4/
-COPY outputs/pref-bt/model.joblib outputs/pref-bt/metrics.json outputs/pref-bt/
+COPY outputs/pref-sentseq-keep/model.pt outputs/pref-sentseq-keep/metrics.json outputs/pref-sentseq-keep/
+COPY outputs/pref-bt-keep/model.joblib outputs/pref-bt-keep/metrics.json outputs/pref-bt-keep/
 COPY outputs/pref-sentseq-anchor-2stage-v2/model.pt outputs/pref-sentseq-anchor-2stage-v2/metrics.json outputs/pref-sentseq-anchor-2stage-v2/
 COPY outputs/acceptance_margin_calibration.json outputs/acceptance_margin_calibration.json
 

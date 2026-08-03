@@ -7,7 +7,7 @@ export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:T
 
 MODEL="${MODEL:-Qwen/Qwen3-8B}"
 ADAPTER="${ADAPTER:-/app/adapter}"
-HELDOUT="${HELDOUT:-data/edit_sft/heldout.jsonl}"
+HELDOUT="${HELDOUT:-data/edit_sft_all/heldout.jsonl}"
 LIMIT="${LIMIT:-64}"
 # 空白区切り: adapter base_norms など
 EVAL_MODES="${EVAL_MODES:-adapter base_norms}"

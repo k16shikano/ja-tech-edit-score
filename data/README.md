@@ -30,5 +30,5 @@
 ## 選抜難試験（Hard Eval）
 
 - スキーマ: `hard_eval.schema.json`
-- テンプレート: `hard_eval.template.jsonl`
-- ラベル済み実データ: `hard_eval/`（gitignore。手順は [docs/HARD-EVAL.md](../docs/HARD-EVAL.md)）
+- テンプレート: `hard_eval.template.jsonl`（例文は架空。原稿の段落を貼らない）
+- ラベル済み実データ: `hard_eval/`（gitignore。手順は [docs-old/HARD-EVAL.md](../docs-old/HARD-EVAL.md)）

@@ -234,17 +234,23 @@ def mine_file_diff(
   )
 
 
-def example_to_dict(example: Example) -> dict:
+def example_to_dict(
+  example: Example,
+  *,
+  labels: list[str] | None = None,
+  rationale: str | None = None,
+) -> dict:
   return {
     "id": example.id,
     "project_id": example.project_id,
     "source_text": example.source_text,
     "edited_text": example.edited_text,
     "source_reference": example.source_reference,
-    "rationale": "mined from base..edit branch diff",
-    "labels": ["branch_pair_mined"],
+    "rationale": rationale or "mined from base..edit branch diff",
+    "labels": labels or ["branch_pair_mined"],
     "author": "human",
-    "review_result": "accepted",
+    # 採掘時点では未確認。人手 keep または明示ゲート後のみ accepted にする。
+    "review_result": "pending",
     "created_at": example.created_at,
   }
 
@@ -280,6 +286,13 @@ def main() -> None:
   parser.add_argument("--project-id", default="", help="project id (default: repo directory name)")
   parser.add_argument("--path", default="", help="single file path inside repo (default: all changed text files)")
   parser.add_argument("--append", required=True, help="output JSONL path to append examples.raw.jsonl")
+  parser.add_argument(
+    "--label",
+    action="append",
+    default=[],
+    help="labels entry (repeatable). default: branch_pair_mined",
+  )
+  parser.add_argument("--rationale", default="", help="rationale string override")
   args = parser.parse_args()
 
   repo = Path(args.repo).resolve()
@@ -289,6 +302,13 @@ def main() -> None:
   project_id = infer_project_id(repo, args.project_id or None)
   base_commit = resolve_commit(repo, args.base)
   edit_commit = resolve_commit(repo, args.edit)
+  # 比較点は履歴構造で検証する（祖先・fork。p1..edit を拒否）
+  from git_pre_merge import assert_structural_edit_pair
+
+  try:
+    assert_structural_edit_pair(repo, base_commit, edit_commit)
+  except ValueError as exc:
+    raise SystemExit(f"invalid revision pair for edit mining: {exc}") from exc
   paths = list_changed_paths(repo, args.base, args.edit, args.path or None)
   if not paths:
     print("no changed text files", file=sys.stderr)
@@ -296,6 +316,8 @@ def main() -> None:
 
   out_path = Path(args.append)
   existing_keys = load_existing_keys(out_path)
+  labels = args.label or ["branch_pair_mined"]
+  rationale = args.rationale or None
 
   all_records: list[dict] = []
   for path in paths:
@@ -309,7 +331,9 @@ def main() -> None:
       edit_commit=edit_commit,
     )
     for example in mined:
-      all_records.append(example_to_dict(example))
+      all_records.append(
+        example_to_dict(example, labels=labels, rationale=rationale)
+      )
 
   appended, skipped = append_records(out_path, all_records, existing_keys)
   print(f"paths: {len(paths)}")

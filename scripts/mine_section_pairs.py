@@ -3,11 +3,13 @@
 
 hunk 採掘（mine_branch_pair.py）では空行が落ち、段落境界や節全体の再構成が失われる。
 本脚本はファイルを見出し単位に分割し、同じ見出しキーの節どうしをペア化する。
+キーが一致しない場合は、本文類似度で 1 対 1 対応を取る。
 """
 
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
 import re
@@ -27,6 +29,9 @@ from mine_branch_pair import (
   resolve_commit,
   slug,
 )
+
+# 見出しキー不一致時の本文マッチ下限（無関係節の袋詰めを避ける）
+DEFAULT_MIN_CONTENT_SIM = 0.45
 
 
 @dataclass
@@ -73,6 +78,65 @@ def is_usable_section_pair(source: str, edited: str, *, max_chars: int) -> bool:
   return True
 
 
+def align_section_pairs(
+  base_sections: dict[str, str],
+  edit_sections: dict[str, str],
+  *,
+  min_content_sim: float,
+) -> list[tuple[str, str, str, str, str]]:
+  """(pair_key, edit_key_unused, source, edited, match_kind) を返す。"""
+  out: list[tuple[str, str, str, str, str]] = []
+  matched_base: set[str] = set()
+  matched_edit: set[str] = set()
+
+  for key in sorted(set(base_sections) & set(edit_sections)):
+    out.append((key, key, base_sections[key], edit_sections[key], "exact_key"))
+    matched_base.add(key)
+    matched_edit.add(key)
+
+  remaining_base = [(k, v) for k, v in base_sections.items() if k not in matched_base]
+  remaining_edit = {k: v for k, v in edit_sections.items() if k not in matched_edit}
+  remaining_base.sort(key=lambda kv: len(kv[1]), reverse=True)
+
+  def leaf(key: str) -> str:
+    return key.split(">")[-1].strip()
+
+  for b_key, b_text in remaining_base:
+    best_key: str | None = None
+    best_sim = 0.0
+    best_heading = 0.0
+    for e_key, e_text in remaining_edit.items():
+      # 長さが大きく違う節同士は親子の誤対応が多い
+      lr = len(e_text) / max(len(b_text), 1)
+      if lr < 0.4 or lr > 2.5:
+        continue
+      heading_sim = difflib.SequenceMatcher(None, leaf(b_key), leaf(e_key)).ratio()
+      if heading_sim < 0.45:
+        continue
+      sim = difflib.SequenceMatcher(None, b_text, e_text).ratio()
+      if sim > best_sim:
+        best_sim = sim
+        best_key = e_key
+        best_heading = heading_sim
+    if best_key is None or best_sim < min_content_sim:
+      continue
+    e_text = remaining_edit.pop(best_key)
+    pair_key_label = f"{b_key}<=>{best_key}"
+    out.append(
+      (
+        pair_key_label,
+        best_key,
+        b_text,
+        e_text,
+        f"content:{best_sim:.3f}:h{best_heading:.2f}",
+      )
+    )
+    matched_base.add(b_key)
+    matched_edit.add(best_key)
+
+  return out
+
+
 def mine_file_sections(
   repo: Path,
   *,
@@ -83,6 +147,7 @@ def mine_file_sections(
   base_commit: str,
   edit_commit: str,
   max_chars: int,
+  min_content_sim: float = DEFAULT_MIN_CONTENT_SIM,
 ) -> list[SectionExample]:
   base_text = read_file_at_ref(repo, base, path)
   edit_text = read_file_at_ref(repo, edit, path)
@@ -91,7 +156,11 @@ def mine_file_sections(
 
   base_sections = split_sections(base_text)
   edit_sections = split_sections(edit_text)
-  keys = sorted(set(base_sections) | set(edit_sections))
+  aligned = align_section_pairs(
+    base_sections,
+    edit_sections,
+    min_content_sim=min_content_sim,
+  )
 
   file_slug = slug(path.replace("/", "__"))
   ref_prefix = (
@@ -100,9 +169,7 @@ def mine_file_sections(
   created_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
   records: list[SectionExample] = []
 
-  for section_key in keys:
-    source = base_sections.get(section_key, "")
-    edited = edit_sections.get(section_key, "")
+  for section_key, _edit_key, source, edited, match_kind in aligned:
     if not is_usable_section_pair(source, edited, max_chars=max_chars):
       continue
     content_hash = hashlib.sha256(
@@ -115,7 +182,7 @@ def mine_file_sections(
         project_id=project_id,
         source_text=source,
         edited_text=edited,
-        source_reference=f"{ref_prefix}:{section_key}",
+        source_reference=f"{ref_prefix}:{section_key}|{match_kind}",
         created_at=created_at,
         section_key=section_key,
         path=path,
@@ -138,7 +205,7 @@ def example_to_dict(example: SectionExample) -> dict:
     "rationale": "mined from base..edit section diff",
     "labels": ["section_pair_mined"],
     "author": "human",
-    "review_result": "accepted",
+    "review_result": "pending",
     "created_at": example.created_at,
     "meta": {
       "granularity": "section",
@@ -196,6 +263,12 @@ def main() -> None:
   project_id = infer_project_id(repo, args.project_id or None)
   base_commit = resolve_commit(repo, args.base)
   edit_commit = resolve_commit(repo, args.edit)
+  from git_pre_merge import assert_structural_edit_pair
+
+  try:
+    assert_structural_edit_pair(repo, base_commit, edit_commit)
+  except ValueError as exc:
+    raise SystemExit(f"invalid revision pair for section mining: {exc}") from exc
   paths = list_changed_paths(repo, args.base, args.edit, args.path or None)
   if not paths:
     print("no changed text files", file=sys.stderr)

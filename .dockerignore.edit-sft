@@ -1,0 +1,11 @@
+# Dockerfile.edit-sft 専用。非公開レジストリのみへ push。
+*
+!requirements-edit-sft.txt
+!scripts/
+!scripts/steering_utils.py
+!scripts/train_edit_sft.py
+!scripts/dok_edit_sft.sh
+!data/
+!data/edit_sft_all/
+!data/edit_sft_all/train.jsonl
+!data/edit_sft_all/stats.json

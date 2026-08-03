@@ -5,10 +5,10 @@ cd /app
 
 MODEL="${MODEL:-Qwen/Qwen3-8B}"
 LIMIT="${LIMIT:-0}"
-EPOCHS="${EPOCHS:-2}"
+EPOCHS="${EPOCHS:-15}"
 LORA_R="${LORA_R:-16}"
 LORA_ALPHA="${LORA_ALPHA:-32}"
-MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-2048}"
+MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-8192}"
 BATCH_SIZE="${BATCH_SIZE:-1}"
 GRAD_ACCUM="${GRAD_ACCUM:-8}"
 LEARNING_RATE="${LEARNING_RATE:-2e-4}"
@@ -22,7 +22,7 @@ if [[ "${TRUST_REMOTE_CODE:-}" == "1" ]]; then
 fi
 
 python scripts/train_edit_sft.py \
-  --train data/edit_sft/train.jsonl \
+  --train data/edit_sft_all/train.jsonl \
   --model "${MODEL}" \
   --epochs "${EPOCHS}" \
   --lora-r "${LORA_R}" \

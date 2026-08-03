@@ -56,7 +56,7 @@ export REGISTRY=（名前）.sakuracr.jp
 512 では 14%、**2048 なら 92%** が切らずに入る。構成試験（v2）の切り詰めを外すのが主目的。
 
 ```bash
-# イメージは既存の ja-tech-edit.sakuracr.jp/pref-ce:latest で可（再 build 不要）
+# イメージは既存の （コンテナレジストリ名）.sakuracr.jp/pref-ce:latest で可（再 build 不要）
 # DOK 環境変数:
 MODE=train
 MAX_LENGTH=2048

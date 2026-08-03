@@ -12,10 +12,10 @@ mine_section_pairs.py は「現行ブランチと main の差分」を見るた�
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
+from git_pre_merge import branch_name_from_subject, list_merges
 from mine_branch_pair import (
   TEXT_SUFFIXES,
   git_output,
@@ -28,36 +28,6 @@ from mine_section_pairs import (
   file_exists_at_ref,
   mine_file_sections,
 )
-
-MERGE_SUBJECT_RE = re.compile(
-  r"Merge (?:pull request #\d+ from [^ ]*?(?P<pr_branch>edit/[^\s']+)"
-  r"|branch '(?P<local_branch>edit/[^']+)')"
-)
-
-
-def list_merges(repo: Path, mainline: str) -> list[tuple[str, str, str, str]]:
-  """main 上のマージコミットを (hash, parent1, parent2, subject) で返す。"""
-  out = git_output(
-    repo, "log", "--merges", "--first-parent", "--format=%H%x00%P%x00%s", mainline, "--"
-  )
-  merges = []
-  for line in out.splitlines():
-    parts = line.split("\x00")
-    if len(parts) != 3:
-      continue
-    commit, parents, subject = parts
-    parent_list = parents.split()
-    if len(parent_list) != 2:
-      continue
-    merges.append((commit, parent_list[0], parent_list[1], subject))
-  return merges
-
-
-def branch_name_from_subject(subject: str) -> str | None:
-  m = MERGE_SUBJECT_RE.search(subject)
-  if not m:
-    return None
-  return m.group("pr_branch") or m.group("local_branch")
 
 
 def changed_text_paths(repo: Path, base: str, edit: str, only_path: str | None) -> list[str]:
@@ -106,6 +76,13 @@ def main() -> None:
     except Exception:
       continue
     if not fork or fork == p2:
+      continue
+    from git_pre_merge import assert_structural_edit_pair
+
+    try:
+      assert_structural_edit_pair(repo, fork, p2)
+    except ValueError as exc:
+      print(f"[skip] structural: {commit[:10]} {exc}", file=sys.stderr)
       continue
     paths = changed_text_paths(repo, fork, p2, args.path or None)
     if not paths:

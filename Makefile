@@ -10,12 +10,18 @@ endif
 DATA_DIR := $(ROOT)data
 OUTPUT_DIR := $(ROOT)outputs/pref-static
 BT_OUTPUT_DIR := $(ROOT)outputs/pref-bt
+BT_KEEP_OUTPUT_DIR := $(ROOT)outputs/pref-bt-keep
 RAW := $(DATA_DIR)/examples.raw.jsonl
 DB := $(DATA_DIR)/examples.db
 DPO := $(DATA_DIR)/dpo_dataset.jsonl
 DPO_CURATED := $(DATA_DIR)/dpo_curated.jsonl
 PREF := $(DATA_DIR)/pref_dataset.jsonl
 PREF_SPLIT := $(DATA_DIR)/pref_split
+PREF_KEEP := $(DATA_DIR)/pref_keep/dataset.jsonl
+PREF_KEEP_SPLIT := $(DATA_DIR)/pref_keep_split
+PREF_KEEP_SPLIT_HUNK := $(DATA_DIR)/pref_keep_split_hunk
+PREF_KEEP_SPLIT_SECTION := $(DATA_DIR)/pref_keep_split_section
+SENTSEQ_KEEP_OUTPUT_DIR := $(ROOT)outputs/pref-sentseq-keep
 
 EMBED_MODEL ?= cl-nagoya/ruri-v3-30m
 TRUNCATE_DIM ?= 0
@@ -56,7 +62,7 @@ TRANSITION_OUTPUT_DIR := $(ROOT)outputs/paragraph-transition
 STRUCTURE_PROFILE := $(DATA_DIR)/section_edit_profile.jsonl
 STRUCTURE_EVAL_DIR := $(ROOT)outputs/structure_eval
 
-.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-ce train-sentseq eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image build-serve-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer calibrate-margins revise serve
+.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-bt-keep train-ce train-sentseq train-sentseq-keep pref-keep-data eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image build-pref-keep-image build-serve-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer calibrate-margins revise serve
 
 help:
 	@echo "Targets:"
@@ -70,11 +76,10 @@ help:
 	@echo "  make build-pref-ce-image  # CE 再学習用 Docker イメージをローカル build"
 	@echo "  make build-pref-sentseq-image  # 文列 Transformer 用 Docker イメージをローカル build"
 	@echo "  make train         # pref-static（既定: ruri-v3-30m）"
-	@echo "  make train-bt      # Bradley-Terry 報酬モデル（絶対スコア）"
-	@echo "  make eval-xproject # leave-one-project-out（ペア分類）"
-	@echo "  make eval-bt-xproject # leave-one-project-out（BT 報酬）"
-	@echo "  make train-ce      # 段階2b: cross-encoder 報酬（GPU 推奨、DOK 可）"
-	@echo "  make train-sentseq # 文列 Transformer 報酬（GPU 推奨、DOK 可）"
+	@echo "  make pref-keep-data # keep → hunk 分割 + 節分割（混ぜない）"
+	@echo "  make train-bt-keep # hunk 分割で BT → outputs/pref-bt-keep"
+	@echo "  make train-sentseq-keep # 節分割で文列 → outputs/pref-sentseq-keep"
+	@echo "  make build-pref-keep-image # DOK 用: BT=hunk / sentseq=section"
 	@echo "  make eval-ce-xproject [ONLY_PROJECTS=a,b] # LOPO（cross-encoder、GPU）"
 	@echo "  make eval-sentseq-xproject [ONLY_PROJECTS=a,b] # LOPO（文列 Transformer、GPU）"
 	@echo "  make hard-eval-label  # Markdown の候補順を labeled JSONL に変換"
@@ -84,12 +89,17 @@ help:
 	@echo "  make score-bt SOURCE=... CANDIDATE=...  # BT 絶対スコア"
 	@echo "  make rank SOURCE=... CANDIDATE_FILES='a.txt b.txt'  # Best-of-N（既定: sentseq 主軸 + bt ゲートの二軸）"
 	@echo "  make calibrate-margins  # 人間編集のマージン分布（合格閾値の根拠）"
-	@echo "  make revise FILE=下書き.md [N=3] [MAX_ITERS=3] [MIN_MARGIN=3.7]  # 生成→二軸判定の推敲ループ"
+	@echo "  make revise FILE=下書き.md [N=3] [MAX_ITERS=3] [MIN_MARGIN=5.5]  # 生成→二軸判定の推敲ループ"
 	@echo "  make serve [HOST=0.0.0.0] [PORT=8300]  # 下書きと推敲に点数を付ける Web サービス（RATE_LIMIT_PER_IP / RATE_LIMIT_WINDOW_SECONDS / MAX_TEXT_CHARS）"
 	@echo "  make build-serve-image  # Fly 公開用 Docker イメージをローカル build"
 	@echo "  make converge CURRENT=... REVISED=... [MODE=pair|bt]  # 収束判定"
-	@echo "  make edit-sft-data  # 系統1フェーズ0: chat SFT データ書き出し"
-	@echo "  make edit-sft MODEL=<hf-id> [LIMIT=0] [EPOCHS=2]  # 系統1フェーズ1: QLoRA SFT（GPU）"
+	@echo "  make edit-sft-data  # 系統1フェーズ0: 節ペアから chat SFT データ書き出し（要: mine-sections）"
+	@echo "  make edit-sft-review [HOST=0.0.0.0] [PORT=8310]  # 人手 keep 節（data/edit_sft）の確認"
+	@echo "  make edit-sft-review-hunk [PORT=8311]  # hunk 増分キュー（ざっとまとめて OK 可）"
+	@echo "  make edit-sft-review-section-extra [PORT=8312]  # 節追加候補キュー（edit_sft とは別）"
+	@echo "  make edit-sft-export-keeps  # keep → 節/空行なし/合流(all)"
+	@echo "  make edit-sft MODEL=<hf-id> [LIMIT=0] [EPOCHS=2]  # 全 keep（節+空行なし）で QLoRA SFT"
+	@echo "  make edit-sft-section-only / edit-sft-hunk  # 系統別の学習（任意）"
 	@echo "  make edit-sft-score  # 系統1評価: DOK 生成結果を BT 採点（CPU）"
 	@echo "  make steering-pairs   # 系統3: draft/revised 対照ペア書き出し"
 	@echo "  make machine-revisions MODEL=composer-2.5 [LIMIT=0] [OFFSET=0]  # Cursor SDK で機械推敲案生成"
@@ -133,10 +143,13 @@ install-skills:
 	@ln -sfn $(ROOT)skills/ja-tech-edit-score-check $(HOME)/.cursor/skills/ja-tech-edit-score-check
 	@echo "installed: ~/.cursor/skills/ja-tech-edit-score-check -> $(ROOT)skills/ja-tech-edit-score-check"
 
+# ORG は tip main ではなく fork（merge-base）。祖先でない対は miner が拒否する。
+# 一括は scripts/batch_mine_hunks_premerge.sh（resolve_pre_merge_pair）を使う。
 data:
 	@test -n "$(DIR)" || (echo "DIR is required" && exit 1)
-	@test -n "$(ORG)" || (echo "ORG is required" && exit 1)
+	@test -n "$(ORG)" || (echo "ORG is required (must be fork / ancestor of EDT)" && exit 1)
 	@test -n "$(EDT)" || (echo "EDT is required" && exit 1)
+	$(PYTHON) -c "from pathlib import Path; import sys; sys.path.insert(0,'scripts'); from git_pre_merge import assert_structural_edit_pair; assert_structural_edit_pair(Path('$(DIR)'), '$(ORG)', '$(EDT)')"
 	$(PYTHON) scripts/mine_branch_pair.py \
 	  --repo "$(DIR)" \
 	  --base "$(ORG)" \
@@ -177,6 +190,9 @@ build-pref-ce-image:
 
 build-pref-sentseq-image:
 	bash scripts/build_pref_sentseq_image.sh
+
+build-pref-keep-image:
+	bash scripts/build_push_pref_keep_image.sh
 
 build-serve-image:
 	docker build -f Dockerfile.serve -t ja-tech-edit-score:serve .
@@ -219,6 +235,50 @@ train-bt: $(PREF_SPLIT)/train.jsonl $(PREF_SPLIT)/valid.jsonl
 	  --text-prefix "$(TEXT_PREFIX)" \
 	  --max-seq-length $(MAX_SEQ_LENGTH) \
 	  --batch-size $(BATCH_SIZE)
+
+pref-keep-data:
+	$(PYTHON) scripts/build_pref_from_keep.py \
+	  --input "$(or $(KEEP_INPUT),$(DATA_DIR)/revision_corpus/canonical.jsonl)" \
+	  --out-dataset "$(DATA_DIR)/pref_keep/dataset_hunk.jsonl" \
+	  --out-split-dir "$(PREF_KEEP_SPLIT_HUNK)" \
+	  --report "$(DATA_DIR)/pref_keep/build_report_hunk.json" \
+	  --units hunk
+	$(PYTHON) scripts/build_pref_from_keep.py \
+	  --input "$(or $(KEEP_INPUT),$(DATA_DIR)/revision_corpus/canonical.jsonl)" \
+	  --out-dataset "$(DATA_DIR)/pref_keep/dataset_section.jsonl" \
+	  --out-split-dir "$(PREF_KEEP_SPLIT_SECTION)" \
+	  --report "$(DATA_DIR)/pref_keep/build_report_section.json" \
+	  --units section
+
+train-bt-keep: pref-keep-data
+	@test -s "$(PREF_KEEP_SPLIT_HUNK)/train.jsonl" || (echo "missing $(PREF_KEEP_SPLIT_HUNK)/train.jsonl" && exit 1)
+	$(PYTHON) scripts/train_pref_bt.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(PREF_KEEP_SPLIT_HUNK)/train.jsonl" \
+	  --eval-file "$(PREF_KEEP_SPLIT_HUNK)/valid.jsonl" \
+	  --output-dir "$(BT_KEEP_OUTPUT_DIR)" \
+	  --truncate-dim $(TRUNCATE_DIM) \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(MAX_SEQ_LENGTH) \
+	  --batch-size $(BATCH_SIZE) \
+	  --device "$(or $(DEVICE),cuda)"
+
+train-sentseq-keep: pref-keep-data
+	@test -s "$(PREF_KEEP_SPLIT_SECTION)/train.jsonl" || (echo "missing $(PREF_KEEP_SPLIT_SECTION)/train.jsonl" && exit 1)
+	$(PYTHON) scripts/train_pref_sentseq.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(PREF_KEEP_SPLIT_SECTION)/train.jsonl" \
+	  --eval-file "$(PREF_KEEP_SPLIT_SECTION)/valid.jsonl" \
+	  --output-dir "$(SENTSEQ_KEEP_OUTPUT_DIR)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --epochs $(or $(SENTSEQ_KEEP_EPOCHS),40) \
+	  --batch-size $(SENTSEQ_BATCH_SIZE) \
+	  --device "$(or $(DEVICE),cuda)" \
+	  --lr "$(or $(SENTSEQ_KEEP_LR),3e-4)" \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),)
 
 train-ce: $(PREF_SPLIT)/train.jsonl $(PREF_SPLIT)/valid.jsonl
 	@test -s "$(PREF_SPLIT)/train.jsonl" || (echo "no split: run make train first" && exit 1)
@@ -315,11 +375,12 @@ score-bt:
 	  --source-text "$(SOURCE)" \
 	  --candidate-text "$(CANDIDATE)"
 
-# 二軸運用の既定: 主モデル=pref-sentseq（採用版）、ゲート=pref-bt（細部悪化の検出）
+# 二軸運用の既定: 主モデル=pref-sentseq-keep（節）、ゲート=pref-bt-keep（hunk）
 # GATE_MODEL= （空）でゲートなしの一軸に戻せる
-SENTSEQ_BEST_DIR := $(ROOT)outputs/pref-sentseq-3e4
-RANK_MODEL ?= $(if $(wildcard $(SENTSEQ_BEST_DIR)),$(SENTSEQ_BEST_DIR),$(if $(wildcard $(CE_OUTPUT_DIR)),$(CE_OUTPUT_DIR),$(BT_OUTPUT_DIR)))
-GATE_MODEL ?= $(if $(and $(findstring pref-sentseq,$(RANK_MODEL)),$(wildcard $(BT_OUTPUT_DIR))),$(BT_OUTPUT_DIR),)
+SENTSEQ_BEST_DIR := $(ROOT)outputs/pref-sentseq-keep
+BT_GATE_DIR := $(ROOT)outputs/pref-bt-keep
+RANK_MODEL ?= $(if $(wildcard $(SENTSEQ_BEST_DIR)),$(SENTSEQ_BEST_DIR),$(if $(wildcard $(CE_OUTPUT_DIR)),$(CE_OUTPUT_DIR),$(BT_GATE_DIR)))
+GATE_MODEL ?= $(if $(and $(findstring pref-sentseq,$(RANK_MODEL)),$(wildcard $(BT_GATE_DIR))),$(BT_GATE_DIR),)
 
 # 生成→二軸判定→反復の推敲ループを1コマンドで回す（要 CURSOR_API_KEY）
 revise:
@@ -336,22 +397,22 @@ revise:
 	  $(if $(MIN_SECTION_CHARS),--min-section-chars $(MIN_SECTION_CHARS),) \
 	  $(if $(SKILLS),--skills "$(SKILLS)",) \
 	  --primary-model "$(SENTSEQ_BEST_DIR)" \
-	  --gate-model "$(BT_OUTPUT_DIR)" \
+	  --gate-model "$(BT_GATE_DIR)" \
 	  || { s=$$?; test $$s -eq 2 && echo "（閾値未達の節あり。詳細は上の一覧）" || exit $$s; }
 
-# 下書きと推敲に点数を付ける Web サービス（既定 http://127.0.0.1:8300）
-# 他のマシンから使うときは HOST=0.0.0.0 か、待ち受けたいインタフェースの IP を指定。
-# 公開時は RATE_LIMIT_PER_IP（既定 10）と RATE_LIMIT_WINDOW_SECONDS（既定 86400）で
-# IP 単位の試行を制限。ローカルで無制限にするときは RATE_LIMIT_PER_IP=0。
+# 下書きと推敲に点数を付ける Web サービス（既定 0.0.0.0:8300）
+# 127.0.0.1 では起動しない。公開時は RATE_LIMIT_PER_IP（既定 10）と
+# RATE_LIMIT_WINDOW_SECONDS（既定 86400）で IP 単位の試行を制限。
+# 無制限にするときは RATE_LIMIT_PER_IP=0。
 serve:
-	$(PYTHON) scripts/score_server.py --host $(or $(HOST),127.0.0.1) --port $(or $(PORT),8300)
+	$(PYTHON) scripts/score_server.py --host $(or $(HOST),0.0.0.0) --port $(or $(PORT),8300)
 
 # 人間編集が下書きから稼ぐマージン分布を測り、合格閾値の根拠を出す
 calibrate-margins:
 	$(PYTHON) scripts/calibrate_acceptance_margins.py \
-	  --pairs "$(or $(PAIRS),$(ROOT)data/pref_split/valid.jsonl)" \
+	  --pairs "$(or $(PAIRS),$(ROOT)data/pref_keep_split_section/valid.jsonl)" \
 	  --primary-model "$(SENTSEQ_BEST_DIR)" \
-	  --gate-model "$(BT_OUTPUT_DIR)" \
+	  --gate-model "$(BT_GATE_DIR)" \
 	  --out "$(ROOT)outputs/acceptance_margin_calibration.json"
 
 rank:
@@ -386,15 +447,86 @@ check:
 	  $(if $(EDIT),--edit "$(EDIT)",) \
 	  $(if $(FORMAT),--format "$(FORMAT)",--format markdown)
 
-edit-sft-data: $(REVISION_PAIRS)
-	@test -s "$(REVISION_PAIRS)" || (echo "run make steering-pairs first" && exit 1)
-	$(PYTHON) scripts/export_edit_sft.py --pairs "$(REVISION_PAIRS)"
+edit-sft-data:
+	@test -s "$(DATA_DIR)/examples.section.raw.jsonl" || (echo "run make mine-sections first" && exit 1)
+	$(PYTHON) scripts/export_edit_sft.py \
+	  --section-raw "$(DATA_DIR)/examples.section.raw.jsonl" \
+	  --out-dir "$(DATA_DIR)/edit_sft"
+
+edit-sft-review:
+	@test -s "$(DATA_DIR)/edit_sft/train.jsonl" || (echo "run make edit-sft-data first" && exit 1)
+	$(PYTHON) scripts/edit_sft_review_server.py \
+	  --host $(or $(HOST),0.0.0.0) \
+	  --port $(or $(PORT),8310) \
+	  --train "$(DATA_DIR)/edit_sft/train.jsonl" \
+	  --heldout "$(DATA_DIR)/edit_sft/heldout.jsonl" \
+	  --state "$(DATA_DIR)/edit_sft/review_state.json"
+
+# hunk 増分（data/edit_sft_hunk_review）。既存節 keep とは state 分離。
+# pending は keep にしない（学習は明示 keep のみ）。
+edit-sft-review-hunk:
+	@test -s "$(DATA_DIR)/edit_sft_hunk_review/train.jsonl" || (echo "missing edit_sft_hunk_review; export hunk_trainready first" && exit 1)
+	$(PYTHON) scripts/edit_sft_review_server.py \
+	  --host $(or $(HOST),0.0.0.0) \
+	  --port $(or $(PORT),8311) \
+	  --train "$(DATA_DIR)/edit_sft_hunk_review/train.jsonl" \
+	  --heldout "$(DATA_DIR)/edit_sft_hunk_review/heldout.jsonl" \
+	  --state "$(DATA_DIR)/edit_sft_hunk_review/review_state.json"
+
+# 節追加候補（data/edit_sft_section_extra_review）。keep 200 とは別キュー。
+edit-sft-review-section-extra:
+	@test -s "$(DATA_DIR)/edit_sft_section_extra_review/train.jsonl" || (echo "missing edit_sft_section_extra_review" && exit 1)
+	$(PYTHON) scripts/edit_sft_review_server.py \
+	  --host $(or $(HOST),0.0.0.0) \
+	  --port $(or $(PORT),8312) \
+	  --train "$(DATA_DIR)/edit_sft_section_extra_review/train.jsonl" \
+	  --heldout "$(DATA_DIR)/edit_sft_section_extra_review/heldout.jsonl" \
+	  --state "$(DATA_DIR)/edit_sft_section_extra_review/review_state.json"
+
+# レビュー keep を学習用に書き出す。
+# 空行あり → data/edit_sft_section
+# 空行なし → data/edit_sft_hunk_nopara
+# 合流（Qwen SFT 本線）→ data/edit_sft_all
+edit-sft-export-keeps:
+	$(PYTHON) scripts/export_reviewed_keeps.py \
+	  --section-out "$(DATA_DIR)/edit_sft_section" \
+	  --hunk-nopara-out "$(DATA_DIR)/edit_sft_hunk_nopara" \
+	  --all-out "$(DATA_DIR)/edit_sft_all" \
+	  --corpus-dir "$(DATA_DIR)/revision_corpus"
+	$(PYTHON) scripts/build_revision_corpus.py \
+	  --out-dir "$(DATA_DIR)/revision_corpus" \
+	  --keep-section "$(DATA_DIR)/revision_corpus/keep_section.jsonl" \
+	  --keep-hunk-nopara "$(DATA_DIR)/revision_corpus/keep_hunk_nopara.jsonl"
+
+# 互換: export-keeps へのエイリアス
+edit-sft-promote-reviewed: edit-sft-export-keeps
+	@echo "promoted: all=$$(wc -l < "$(DATA_DIR)/edit_sft_all/train.jsonl") section=$$(wc -l < "$(DATA_DIR)/edit_sft_section/train.jsonl") hunk_nopara=$$(wc -l < "$(DATA_DIR)/edit_sft_hunk_nopara/train.jsonl")"
 
 edit-sft:
 	@test -n "$(MODEL)" || (echo "MODEL=<hf-id> is required" && exit 1)
-	@test -s "$(DATA_DIR)/edit_sft/train.jsonl" || (echo "run make edit-sft-data first" && exit 1)
+	@test -s "$(DATA_DIR)/edit_sft_all/train.jsonl" || (echo "run make edit-sft-export-keeps first" && exit 1)
 	$(PYTHON) scripts/train_edit_sft.py \
-	  --train "$(DATA_DIR)/edit_sft/train.jsonl" \
+	  --train "$(DATA_DIR)/edit_sft_all/train.jsonl" \
+	  --model "$(MODEL)" \
+	  --epochs $(or $(EPOCHS),2) \
+	  $(if $(filter-out 0,$(or $(LIMIT),0)),--limit $(LIMIT),) \
+	  $(if $(TRUST_REMOTE_CODE),--trust-remote-code,)
+
+edit-sft-section-only:
+	@test -n "$(MODEL)" || (echo "MODEL=<hf-id> is required" && exit 1)
+	@test -s "$(DATA_DIR)/edit_sft_section/train.jsonl" || (echo "run make edit-sft-export-keeps first" && exit 1)
+	$(PYTHON) scripts/train_edit_sft.py \
+	  --train "$(DATA_DIR)/edit_sft_section/train.jsonl" \
+	  --model "$(MODEL)" \
+	  --epochs $(or $(EPOCHS),2) \
+	  $(if $(filter-out 0,$(or $(LIMIT),0)),--limit $(LIMIT),) \
+	  $(if $(TRUST_REMOTE_CODE),--trust-remote-code,)
+
+edit-sft-hunk:
+	@test -n "$(MODEL)" || (echo "MODEL=<hf-id> is required" && exit 1)
+	@test -s "$(DATA_DIR)/edit_sft_hunk_nopara/train.jsonl" || (echo "run make edit-sft-export-keeps first" && exit 1)
+	$(PYTHON) scripts/train_edit_sft.py \
+	  --train "$(DATA_DIR)/edit_sft_hunk_nopara/train.jsonl" \
 	  --model "$(MODEL)" \
 	  --epochs $(or $(EPOCHS),2) \
 	  $(if $(filter-out 0,$(or $(LIMIT),0)),--limit $(LIMIT),) \

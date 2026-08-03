@@ -4,8 +4,8 @@
 点数は「下書きを基準にしたマージン」で、revise_loop と同じ定義:
   margin = s(下書き, 推敲) - s(下書き, 下書き)
 三軸で返す。
-- 主軸（pref-sentseq-3e4）: 全体の質。合否と分布ゲージに使う。
-- ゲート（pref-bt）: 細部（語彙・文単位）の悪化検出。
+- 主軸（pref-sentseq-keep）: 節 keep で学習した文列。合否と分布ゲージに使う。
+- ゲート（pref-bt-keep）: hunk keep で学習した BT。細部（語彙・文単位）の悪化検出。
 - 方向（pref-sentseq-anchor-2stage-v2）: アンカー学習で方向感度を持つ検出器。
   マージンが負なら「入れ替わり・改悪の疑い」を警告する（劣化版の負率 1.00、
   逆方向の負率 0.76。ただし本物の人間編集でも約 4 割は負に出るため、
@@ -37,16 +37,16 @@ from pydantic import BaseModel, Field
 from pref_scorer import LoadedScorer, load_scorer
 from sentseq_utils import split_document_sentences
 
-# 主軸は順位付け重視の pref-sentseq-3e4。方向感度は持たないので、
-# 入れ替わり・改悪の検出はアンカー学習版の方向軸が別に担う。
-DEFAULT_PRIMARY = ROOT / "outputs" / "pref-sentseq-3e4"
-DEFAULT_GATE = ROOT / "outputs" / "pref-bt"
+# 主軸は節 keep の文列。ゲートは hunk keep の BT。
+# 方向感度はアンカー学習版が別に担う。
+DEFAULT_PRIMARY = ROOT / "outputs" / "pref-sentseq-keep"
+DEFAULT_GATE = ROOT / "outputs" / "pref-bt-keep"
 DEFAULT_DIRECTION = ROOT / "outputs" / "pref-sentseq-anchor-2stage-v2"
 DEFAULT_CALIBRATION = ROOT / "outputs" / "acceptance_margin_calibration.json"
 INDEX_HTML = ROOT / "web" / "index.html"
 
 # 合格ラインは self 基準の人間編集マージン中央値（make calibrate-margins）。
-DEFAULT_MIN_MARGIN = float(os.environ.get("MIN_MARGIN", "3.7"))
+DEFAULT_MIN_MARGIN = float(os.environ.get("MIN_MARGIN", "5.5"))
 DEFAULT_GATE_MIN_MARGIN = float(os.environ.get("GATE_MIN_MARGIN", "0.0"))
 
 # 公開向けの濫用防止。ローカル検証では RATE_LIMIT_PER_IP=0 で無効化できる。
@@ -354,9 +354,13 @@ def score(req: ScoreRequest, request: Request):
 
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument("--host", default="127.0.0.1")
+  parser.add_argument("--host", default="0.0.0.0")
   parser.add_argument("--port", type=int, default=8300)
   args = parser.parse_args()
+  if args.host in ("127.0.0.1", "localhost", "::1"):
+    raise SystemExit(
+      f"refusing to bind {args.host!r}; use 0.0.0.0 (or a LAN address) so remote clients can reach it"
+    )
 
   import uvicorn
 

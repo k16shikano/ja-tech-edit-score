@@ -140,7 +140,7 @@ def strip_meta_revision(text: str) -> str:
       if len(parts) == 2:
         t = parts[1].strip()
 
-  # 末尾の解説ブロックを切る
+  # 末尾の解説ブロックを切る（見出し付き）
   cut_markers = (
     r"\n---\s*\n+(?:\#\#?\#?\s*)?(?:説明|解説|根拠|変更点|推敲の根拠)",
     r"\n\*\*(?:説明|解説|根拠|変更点|推敲の根拠)[^*]*\*\*",
@@ -149,6 +149,18 @@ def strip_meta_revision(text: str) -> str:
   for pat in cut_markers:
     m = re.search(pat, t)
     if m:
+      t = t[: m.start()].strip()
+
+  # 「本文\n\n---\n\nこのようにすると…」型の後書き（見出し無しメタ）
+  m = re.search(r"\n---\s*\n+", t)
+  if m:
+    after = t[m.end() :].strip()
+    # 区切り線の後が短いメタ解説っぽいときだけ落とす
+    if after and (
+      after.startswith(("このように", "以上により", "以上で", "これで", "なお、"))
+      or "読みやすさ" in after[:80]
+      or "必要に応じて" in after[:80]
+    ):
       t = t[: m.start()].strip()
 
   # 残った単独の「推敲後の文：」行

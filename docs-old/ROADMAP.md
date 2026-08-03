@@ -3,15 +3,23 @@
 採掘済みの推敲ペアデータで何ができるかを整理する構想メモ。
 [SFT-DPO.md](SFT-DPO.md) / [EDIT-MODEL.md](EDIT-MODEL.md) が生成 fine-tune（系統1）の検討、[ACTIVATION-STEERING.md](ACTIVATION-STEERING.md) が活性化ステアリング（系統3）の検討である。
 本メモは評価モデルの強化、絶対スコア化、ループエンジニアリングを含む全体像を扱う。
-評価・BT・ループの実装済み部分以外に、生成への埋め込み実験は計画段階である。
+
+**いまの本線（2026-08-02）**：編集 SFT（6b）用の人手 keep を整備済み（合流 1976 件）。
+DOK イメージ `ja-tech-edit.sakuracr.jp/edit-sft:latest` は全 keep 同梱で push 済み。学習ジョブと生成比較が次。
+コーパスの作業記録は [EDIT-SFT-CORPUS.md](EDIT-SFT-CORPUS.md)。
+壊れた教師（hunk 袋詰め・main 先端節・推敲済みからの再編集 tip）での旧計測は各文書の「履歴」に残し、現行の採否判断には使わない。
 
 ## 現状の資産
 
 | 資産 | 内容 |
 |------|------|
 | `data/examples.raw.jsonl` | Git diff から採掘した推敲ペア（ローカル、非公開） |
-| `data/dpo_curated.jsonl` | キュレーション済みペア 約 5,900 件 |
-| `data/pref_dataset.jsonl` | swap 拡張済みの選好学習データ 約 11,800 行 |
+| `data/dpo_curated.jsonl` | キュレーション済みペア 約 5,900 件（主に hunk） |
+| `data/pref_dataset.jsonl` | swap 拡張済みの選好学習データ。**内の旧節 `section_pair_mined` は使わない**（追記参照） |
+| `data/edit_sft_all/{train,heldout}.jsonl` | **SFT 本線**。全 keep 1976（train 1717 / heldout 259） |
+| `data/edit_sft_section/` / `edit_sft_hunk_nopara/` | 空行あり / 空行なしの系統別保管 |
+| `data/edit_sft/` ほか review キュー | 8310/8311/8312。レビュー完了。学習本線ではない |
+| 詳細 | [EDIT-SFT-CORPUS.md](EDIT-SFT-CORPUS.md) / [EDIT-MODEL.md](EDIT-MODEL.md) |
 | pref-static | 静的埋め込み（hotchpotch）+ ロジスティック回帰の選好評価モデル |
 | `check` / `compare` | hunk 単位採点と 2 候補比較の CLI |
 
@@ -217,8 +225,10 @@ ja-tech-edit-score-converge \
 | 空行（段落境界）あり | **0%** | **100%** |
 | 段落数が変化 | 0% | **50.8%** |
 
-次: CE を再学習して LOPO / 難試験で構成選好が載るか測る。
+次（当時）: CE を再学習して LOPO / 難試験で構成選好が載るか測る。
 長い節は `max_length=512` を超えうるため、トークン上限と切り詰め方針も要検討。
+
+**注意（2026-08）**: 下表の節経路（484→438）は、のちに main 先端比較だと判明した分を含む。件数・手順の記録としては残すが、現行の学習材料にはしない。
 
 節ペアの pref 化（`make section-pref-data`）:
 
@@ -235,14 +245,13 @@ ja-tech-edit-score-converge \
 
 CE 再学習用イメージ: `make build-pref-ce-image` → `pref-ce:local`（6.3GB）。DOK push は `REGISTRY=... ./scripts/build_push_pref_ce_image.sh`。
 
-**再学習と採用（2026-07-17）**: DOK `MODE=train` で節ペア込み CE を学習（in-domain valid pair accuracy 0.992）。
+**再学習と当時の採用（2026-07-17・履歴）**: DOK `MODE=train` で節ペア込み CE を学習（in-domain valid pair accuracy 0.992）。
 Hard Eval v1 では旧 CE と実質同等（Top-1 0.45 vs 0.50、ペア一致 0.840 vs 0.837）。
-v1 は文レベルの推敲しか測っておらず、段落構成の識別力は試験に含まれていない。
-文レベルで同等なら、構成レベルの信号を学習に含む新モデルが期待値で優位（旧 CE は段落境界を一度も見ていない）なので、**節ペア込み CE を本線に採用**した。
+当時は節ペア込み CE を本線に置いた（配置: `outputs/pref-ce-beyond-para/`、旧は `outputs/pref-ce-hunk-only/`）。
 
-- 配置: `outputs/pref-ce-beyond-para/`（実体）、`outputs/pref-ce` はそこへの symlink
-- 旧 CE は `outputs/pref-ce-hunk-only/` に退避（比較用）
-- 構成識別力の実測は難試験 v2（節単位、3e）で行う
+**現行の扱い（2026-08）**: 上記の節 438 は `main@…->edit/…`（main 先端比較）由来であり、選好の前提が崩れている。**学習・評価の根拠に使わない**。
+人手採用 keep（空行あり節を含む）への差し替え後に、CE／sentseq／BT の節込み再学習を再検討する（末尾追記）。
+構成識別力の実測も、`deg-*` 試験ではなく「人間編集 ≻ 下書き（意味保持）」の軸で行う。
 
 ## 生成モデルへの埋め込み（系統1 / 系統3）
 
@@ -251,14 +260,13 @@ kNN 実例注入（系統4）は過去に失敗しており、採用しない。
 
 | 系統 | 文書 | 要旨 | 状態 |
 |------|------|------|------|
-| 1 編集モデル | [EDIT-MODEL.md](EDIT-MODEL.md) / [DOK-EDIT-SFT.md](DOK-EDIT-SFT.md) | SFT + on-policy DPO/RAFT。生産置き換えではなく選好測定→必要ならベンダー FT | フェーズ0済み・フェーズ1脚本あり |
-| 3 activation steering | [ACTIVATION-STEERING.md](ACTIVATION-STEERING.md) | 対照対から方向ベクトルを読み、生成時に加算 | フェーズ A 計測済み（弱め）・縮小 |
+| 1 編集モデル | [EDIT-MODEL.md](EDIT-MODEL.md) / [DOK-EDIT-SFT.md](DOK-EDIT-SFT.md) | 下書き→推敲の QLoRA。いまの問いは「後付けできるか」 | **データ整備済み・DOK イメージ push 済み**（全 keep）。学習ジョブが次 |
+| 3 activation steering | [ACTIVATION-STEERING.md](ACTIVATION-STEERING.md) | 対照対から方向ベクトルを読む | 第1回は hunk 系で計測（履歴）。**人手採用節で取り直し予定** |
 
-推奨順: 系統1フェーズ1（QLoRA SFT）を優先。系統3のフェーズ B/C は読み取りが弱いため見送り。
+推奨順: 6b（SFT 取り直し）のあと、3j / 6a / 3a（節追加）へ進む。詳細は末尾の追記。
 
 生成品質だけではフロンティア＋規範スキル＋Best-of-N が当面の本線である。
-系統1の問いは「言語化から漏れた選好が学習で載るか」であり、載る場合のみベンダー FT を検討する。
-詳細は [EDIT-MODEL.md](EDIT-MODEL.md) の「本系統の位置づけ」。
+Qwen 側の本線の問いは「推敲の後付け」と「線型分離」である（採点器勝率そのものではない）。
 
 ### 生成モデルの fine-tune（編集モデル）
 
@@ -287,20 +295,68 @@ kNN 実例注入（系統4）は過去に失敗しており、採用しない。
 |----|------|------|----------|------|
 | 1 | 評価プロトコルの整備（cross-project 分割） | なし | CPU | 済み |
 | 2 | 凍結埋め込みの差し替え比較 → ruri-v3-30m 採用 | 1 | CPU | 済み |
-| 3a | BT 報酬モデル（凍結 ruri + 線形ヘッド） | 2 | CPU | 済み |
+| 3a | BT 報酬モデル（凍結 ruri + 線形ヘッド） | 2 | CPU | 済み（hunk 中心）。**次: 人手採用の空行あり節を追加して再学習** |
 | 3b | BT 報酬の cross-encoder 化（ModernBERT-ja） | 3a | GPU | **採用**（難試験で BT を上回る。Top-1 0.50 / ペア 0.837） |
 | 3c | 選抜難試験（LLM ベース＋人手） | 3a | CPU＋人手 | v1 実施済み（20項目）。拡充は継続（[HARD-EVAL.md](HARD-EVAL.md)） |
 | 3d | CE の運用組み込み（rank / converge） | 3b | CPU | 済み（meta.json で BT/CE 自動判別。rank の既定は pref-ce） |
 | 3e | 難試験 v2: 節（複数段落）単位の項目 | 3c | CPU＋人手 | **方針変更**。`deg-*`（結合・過剰分割・逆転）は評価対象から外す。目標は「人間編集が下書きに対し意味保持のまま構成・表現が良くなっているか」 |
-| 3f | 節単位ペアの再採掘と CE 再学習 | 3b | CPU＋GPU | **済み・採用**。節ペア込み CE（`pref-ce-beyond-para`）／長文化 `pref-ce-ml2048`。構成負例の学習投入・`deg-*` 採点は打ち切り |
+| 3f | 節単位ペアの再採掘と CE 再学習 | 3b | CPU＋GPU | 実施済みだが、当時の節は **main 先端比較を含み信頼しない**。CE の節込み再学習はデータ差し替え後に再検討 |
 | 3g | 段落遷移モデル（完成稿の隣接対で学習） | — | CPU | **実施・否定的結果で終了**（2026-07-25）。隣接判別は LOPO AUC 0.829 だが、held-out 実編集で「編集後 > 下書き」の勝率 40〜44%（境界数を揃えても同様）。隣接性＝話題の連続性であり、編集による構成改善とは別軸。詳細 [PARAGRAPH-TRANSITION.md](PARAGRAPH-TRANSITION.md) |
 | 3h | 実編集の層別評価（構成支配ペアの測定器） | 3e | CPU | **実施**（2026-07-25）。信頼できる構成支配ペアは held-out 112節中9件のみ。「下書き vs 編集後」の2択は全層・全モデルで飽和（勝率100%）。点差は表現変化量に比例し、構成支配層で小さい。測定器の拡充は人手の構成限定編集が必要。詳細 [STRUCTURE-EVAL.md](STRUCTURE-EVAL.md) |
 | 3i | 機械推敲案の負例（人間編集 ≻ 機械案） | 3b | CPU＋SDK | **実施・限定的結果で拡大中止**（2026-07-25）。500件生成（検品通過456件）で pref-bt を再学習したが、三点比較の勝率は v2b（対 Fable 0.667）も v2c（対 composer 0.583）も不変。負例5倍重みで composer にのみ 0.583→0.625、v1 総当たり一致率は 0.830→0.810 と退行の兆候。線形分離診断（`scripts/probe_machine_neg_separability.py`）で ruri 埋め込み＋線形層の上限はペア正解率 0.71 と判明。残り5,500件への生成拡大は採らない |
-| 3j | 文列 Transformer（pref-sentseq） | 3a | GPU（DOK） | **有望・改良中**（2026-07-26）。文単位の凍結 ruri ベクトル列＋段落開始埋め込みを2層 Transformer に読ませる。機械負例なしで v1 top-1 0.80→0.85（bt 0.45）、機械案の相対位置が初めて「コピーと人間の間」に収まった。エポック増・容量増・学習率増を1変数ずつ実験: 容量増（512・4層）は難試験で明確に退行、学習率 3e-4 は valid 0.862・v2b/v2c 勝率とも 0.708 で総合最良（採用、`outputs/pref-sentseq-3e4`）。train 正解率は何をしても 0.82〜0.83 で、細部判別の上限は凍結文ベクトルの表現限界とほぼ確定。bt との固定重み合成はどの重みでも両課題の最良にならず、二軸運用（ランキング＝sentseq、細部悪化ゲート＝bt）。LOPO 全 fold は micro 0.905 で合格（最弱 fold は bt と共通）。次は二軸運用の実装。詳細 [DOK-PREF-SENTSEQ.md](DOK-PREF-SENTSEQ.md) |
+| 3j | 文列 Transformer（pref-sentseq） | 3a | GPU（DOK） | 採用モデルは `outputs/pref-sentseq-3e4`（hunk＋旧節）。スキームは [DOK-PREF-SENTSEQ.md](DOK-PREF-SENTSEQ.md)。**人手採用節で取り直し予定**（旧 main 先端節は使わない） |
 | 4 | Best-of-N と収束判定のループ実装 | 3a | CPU | 済み |
 | 5 | 要推敲検出器の採掘拡張 | 1 | CPU | 未着手 |
-| 6a | activation steering 読み取り（フェーズ A） | データ | GPU（短） | 計測済み（弱め）・B/C 見送り |
-| 6b | 編集モデルの SFT（フェーズ0〜1） | 3a | GPU | 実施済み・BT 評価で規範スキルに敗北（勝率 0.269）・縮小 |
+| 6a | activation steering 読み取り（フェーズ A） | データ | GPU（短） | 第1回は hunk 系（履歴）。**人手採用節で取り直し予定** |
+| 6b | 編集モデルの SFT（フェーズ0〜1） | 3a | GPU | **フェーズ0完了**（全 keep 合流）。イメージ push 済み。**次: DOK 学習→生成比較**。[EDIT-MODEL.md](EDIT-MODEL.md) |
 
 「推敲済み日本語の安定生成」という大目標に対しては、生成モデルより先に良い報酬モデル（絶対スコア）を持つことがボトルネック解消になる。
 報酬モデルがあれば、生成側はフロンティア LLM + 規範スキルでも水準に届き、自前の fine-tune / steering はその後の最適化になる。
+
+## 追記（2026-08-01〜02）：人手確認 keep と再学習の使い分け
+
+既存の各段階の記述は履歴として残す。
+以下は、節・hunk の見直し後の方針である。
+
+### 手元の採用 keep
+
+比較点を fork..edit に直し、late-gate を入れたうえで再採掘し、三キューで人手確認した。
+採用 keep はすべて学習に使う。最初の 8310 分だけを上位の核とはしない。
+
+| 置き場 | 内容 |
+|--------|------|
+| `data/edit_sft_all/` | SFT 本線（全 keep 合流） |
+| `data/edit_sft_section/` | 空行あり（8310・8312・8311 の該当分） |
+| `data/edit_sft_hunk_nopara/` | 空行なし |
+| 作業記録 | [EDIT-SFT-CORPUS.md](EDIT-SFT-CORPUS.md) |
+
+レビュー前 raw や誤比較（main 先端・再編集 tip）は学習に使わない。
+件数を増やすときは同じゲートで掘り、再び人手確認する。
+
+### 使ってはいけない節データ
+
+`pref_dataset.jsonl` に混ざっている旧・節由来（`section_pair_mined`、swap 込み約 438 行）は使わない。
+参照が `main@…->edit/…` になっており、マージ後に進んだ main と edit を比べた採掘だからである。
+下書き側が「その edit の直前の稿」になっておらず、選好の前提が崩れる。
+
+### keep を次に載せる段階
+
+| 段階 | 使い方 |
+|------|--------|
+| 6b | データ整備完了（作業記録は [EDIT-SFT-CORPUS.md](EDIT-SFT-CORPUS.md)）。**次: DOK で全 keep SFT → held-out 生成比較** |
+| 3j | 取り直す。文列モデルは段落を見るので、誤比較の旧節やレビュー前 raw ではなく、空行あり keep（`edit_sft_section`）を使う |
+| 6a | 取り直す。対照ペアを空行あり keep に差し替え、推敲軸の線型分離を測り直す |
+| 3a | 空行なし hunk と空行あり節を役割分担して BT を再学習する |
+
+Qwen 実験でいま見たい問いは、採点器の勝率そのものではない。
+
+- 推敲という軸が、LLM の表象で線型に分離できるか（6a）
+- Qwen 程度でも、推敲変換を LoRA で後付けできるか（6b）
+
+### データ拡充と採掘の拡張
+
+書籍の広がりを増やすときは、別プロジェクトから同じゲートで掘る。
+
+現行の一括採掘は `edit/...` ブランチ対とマージ直前推定が中心である。
+ブランチが無い稿、1 コミットに推敲が閉じている稿、ファイル単位で切り出したい稿では、**base コミット・edit コミット・ファイルパスを直接指定して節差分を取る**入口が必要になる見込みである。
+`mine_section_pairs.py` は ref と `--path` を受けられるが、manifest / 一括側はブランチ前提のままなので、必要になったら拡張する。

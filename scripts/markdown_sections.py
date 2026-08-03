@@ -7,10 +7,19 @@ import re
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 ANCHOR_SUFFIX_RE = re.compile(r"\s*\{#[^}]+\}\s*$")
+# Pandoc / LaTeX が見出しに混ざると、同一節でもキーが一致しなくなる
+LATEX_INLINE_RE = re.compile(r"`[^`]*`\{=[^}]+\}")
+LATEX_EQ_RE = re.compile(r"\{=[^}]+\}")
+LATEX_CMD_RE = re.compile(r"\\[a-zA-Z]+(?:\*?\{[^}]*\})?")
 
 
 def normalize_heading(title: str) -> str:
-  title = ANCHOR_SUFFIX_RE.sub("", title).strip()
+  title = ANCHOR_SUFFIX_RE.sub("", title)
+  title = LATEX_INLINE_RE.sub("", title)
+  title = LATEX_EQ_RE.sub("", title)
+  title = LATEX_CMD_RE.sub("", title)
+  title = re.sub(r"[`*]+", "", title)
+  title = re.sub(r"\s+", " ", title).strip()
   return title
 
 

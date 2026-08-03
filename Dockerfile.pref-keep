@@ -1,0 +1,32 @@
+# 高火力 DOK 向け: レビュー済み keep で pref-bt / pref-sentseq を学習
+# BT = hunk 分割、sentseq = 節分割（混ぜない）
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements-pref-sentseq.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements-pref-sentseq.txt \
+  && pip install --no-cache-dir joblib scikit-learn
+
+COPY scripts/train_pref_bt.py scripts/train_pref_sentseq.py scripts/
+COPY scripts/sentseq_utils.py scripts/pref_static_utils.py scripts/
+COPY scripts/dok_pref_keep.sh /app/dok_pref_keep.sh
+RUN chmod +x /app/dok_pref_keep.sh
+
+COPY data/pref_keep_split_hunk/train.jsonl data/pref_keep_split_hunk/train.jsonl
+COPY data/pref_keep_split_hunk/valid.jsonl data/pref_keep_split_hunk/valid.jsonl
+COPY data/pref_keep_split_section/train.jsonl data/pref_keep_split_section/train.jsonl
+COPY data/pref_keep_split_section/valid.jsonl data/pref_keep_split_section/valid.jsonl
+COPY data/pref_keep/build_report_hunk.json data/pref_keep/build_report_hunk.json
+COPY data/pref_keep/build_report_section.json data/pref_keep/build_report_section.json
+
+ENV PYTHONUNBUFFERED=1
+ENV MODE=both
+ENV DEVICE=cuda
+ENV EMBED_MODEL=cl-nagoya/ruri-v3-30m
+ENV BT_EPOCHS=80
+ENV SENTSEQ_EPOCHS=40
+ENV SENTSEQ_LR=3e-4
+
+ENTRYPOINT ["/bin/bash", "/app/dok_pref_keep.sh"]

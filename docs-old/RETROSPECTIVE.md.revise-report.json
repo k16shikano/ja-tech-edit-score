@@ -1,0 +1,513 @@
+{
+  "file": "/home/k16/dev/ja-tech-edit-score/docs/RETROSPECTIVE.md",
+  "out": "/home/k16/dev/ja-tech-edit-score/docs/RETROSPECTIVE.md.revised.md",
+  "model": "composer-2.5",
+  "skills": "japanese-tech-writing,cognitive-rhythm-writing",
+  "n_candidates": 3,
+  "max_iters": 3,
+  "min_margin": 1.9,
+  "gate_min_margin": 0.0,
+  "n_sections": 14,
+  "n_processed": 13,
+  "n_accepted": 12,
+  "sections": [
+    {
+      "section": "これまでの実験の総括 > 出発点にあるデータと目標",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 5.0447,
+      "chars": 442,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 28.9,
+          "status": "scored",
+          "margin_primary": 1.614,
+          "margin_gate": 5.3867,
+          "gate_passed": true,
+          "chars": 406
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 18.3,
+          "status": "scored",
+          "margin_primary": 4.0243,
+          "margin_gate": 6.8267,
+          "gate_passed": true,
+          "chars": 426
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 23.4,
+          "status": "scored",
+          "margin_primary": 5.0447,
+          "margin_gate": 9.7137,
+          "gate_passed": true,
+          "chars": 442
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 二つの系統の選好モデル",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 6.738,
+      "chars": 909,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 24.7,
+          "status": "scored",
+          "margin_primary": 6.738,
+          "margin_gate": 9.4032,
+          "gate_passed": true,
+          "chars": 909
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 18.9,
+          "status": "scored",
+          "margin_primary": 0.5553,
+          "margin_gate": 9.2457,
+          "gate_passed": true,
+          "chars": 849
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 19.0,
+          "status": "scored",
+          "margin_primary": 0.2242,
+          "margin_gate": 9.6087,
+          "gate_passed": true,
+          "chars": 846
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 難試験第1回と cross-encoder の採用",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 13.8254,
+      "chars": 366,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 15.4,
+          "status": "scored",
+          "margin_primary": 13.8254,
+          "margin_gate": 4.8685,
+          "gate_passed": true,
+          "chars": 366
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 13.8,
+          "status": "scored",
+          "margin_primary": 13.2767,
+          "margin_gate": 4.3294,
+          "gate_passed": true,
+          "chars": 362
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 14.6,
+          "status": "scored",
+          "margin_primary": 11.5597,
+          "margin_gate": 2.8717,
+          "gate_passed": true,
+          "chars": 346
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 段落構成が学習データから欠けていた",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 8.7394,
+      "chars": 366,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 12.4,
+          "status": "scored",
+          "margin_primary": 2.1905,
+          "margin_gate": 6.8248,
+          "gate_passed": true,
+          "chars": 365
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 22.0,
+          "status": "scored",
+          "margin_primary": 8.7394,
+          "margin_gate": 4.3092,
+          "gate_passed": true,
+          "chars": 366
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 11.5,
+          "status": "scored",
+          "margin_primary": 1.9705,
+          "margin_gate": 6.3731,
+          "gate_passed": true,
+          "chars": 364
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 構成は載らなかった、という測定結果",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 3.6896,
+      "chars": 752,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 14.3,
+          "status": "scored",
+          "margin_primary": 2.4386,
+          "margin_gate": 4.7864,
+          "gate_passed": true,
+          "chars": 743
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 21.8,
+          "status": "scored",
+          "margin_primary": 3.6896,
+          "margin_gate": 3.8047,
+          "gate_passed": true,
+          "chars": 752
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 29.4,
+          "status": "scored",
+          "margin_primary": 0.6475,
+          "margin_gate": 2.8525,
+          "gate_passed": true,
+          "chars": 730
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > なぜ判別できないのか",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 2.6863,
+      "chars": 884,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 22.6,
+          "status": "scored",
+          "margin_primary": 2.6863,
+          "margin_gate": 8.2368,
+          "gate_passed": true,
+          "chars": 884
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 21.2,
+          "status": "scored",
+          "margin_primary": 0.8665,
+          "margin_gate": 5.1217,
+          "gate_passed": true,
+          "chars": 860
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 19.0,
+          "status": "scored",
+          "margin_primary": 2.1004,
+          "margin_gate": 8.449,
+          "gate_passed": true,
+          "chars": 879
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 段落遷移モデルの試みと否定的結果",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 6.8992,
+      "chars": 679,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 34.6,
+          "status": "scored",
+          "margin_primary": 0.5629,
+          "margin_gate": 6.2095,
+          "gate_passed": true,
+          "chars": 625
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 28.4,
+          "status": "scored",
+          "margin_primary": 6.8992,
+          "margin_gate": 4.5564,
+          "gate_passed": true,
+          "chars": 679
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 19.1,
+          "status": "scored",
+          "margin_primary": 1.1889,
+          "margin_gate": 5.9555,
+          "gate_passed": true,
+          "chars": 630
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 測定器の見直しと目標の絞り直し",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 3.3381,
+      "chars": 1054,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 28.2,
+          "status": "scored",
+          "margin_primary": 1.6688,
+          "margin_gate": 8.3353,
+          "gate_passed": true,
+          "chars": 1036
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 30.0,
+          "status": "scored",
+          "margin_primary": 0.9217,
+          "margin_gate": 5.0629,
+          "gate_passed": true,
+          "chars": 1020
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 29.1,
+          "status": "scored",
+          "margin_primary": 3.3381,
+          "margin_gate": 5.0588,
+          "gate_passed": true,
+          "chars": 1054
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 機械推敲案を負例にした再学習と、その結果",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 5.9531,
+      "chars": 2088,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 19.4,
+          "status": "scored",
+          "margin_primary": 2.1389,
+          "margin_gate": 3.0653,
+          "gate_passed": true,
+          "chars": 2056
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 40.6,
+          "status": "scored",
+          "margin_primary": 2.7768,
+          "margin_gate": 3.6078,
+          "gate_passed": true,
+          "chars": 2062
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 46.2,
+          "status": "scored",
+          "margin_primary": 5.9531,
+          "margin_gate": 3.9028,
+          "gate_passed": true,
+          "chars": 2088
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 文ベクトル列モデル（pref-sentseq）への転換",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 6.5578,
+      "chars": 1243,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 24.8,
+          "status": "scored",
+          "margin_primary": 6.5578,
+          "margin_gate": 4.5241,
+          "gate_passed": true,
+          "chars": 1243
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 16.3,
+          "status": "scored",
+          "margin_primary": 1.5395,
+          "margin_gate": 3.9398,
+          "gate_passed": true,
+          "chars": 1201
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 22.3,
+          "status": "scored",
+          "margin_primary": 1.5254,
+          "margin_gate": 3.7604,
+          "gate_passed": true,
+          "chars": 1201
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 上限の切り分けと採用構成の確定",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 5.9045,
+      "chars": 949,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 29.9,
+          "status": "scored",
+          "margin_primary": 5.2058,
+          "margin_gate": 6.9988,
+          "gate_passed": true,
+          "chars": 942
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 20.7,
+          "status": "scored",
+          "margin_primary": 2.6965,
+          "margin_gate": 6.0763,
+          "gate_passed": true,
+          "chars": 922
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 28.3,
+          "status": "scored",
+          "margin_primary": 5.9045,
+          "margin_gate": 7.2147,
+          "gate_passed": true,
+          "chars": 949
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 二軸運用という現在の結論",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 3.6765,
+      "chars": 804,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 22.9,
+          "status": "scored",
+          "margin_primary": 3.6765,
+          "margin_gate": 5.6927,
+          "gate_passed": true,
+          "chars": 804
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 20.7,
+          "status": "scored",
+          "margin_primary": 0.9539,
+          "margin_gate": 6.2204,
+          "gate_passed": true,
+          "chars": 787
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 22.5,
+          "status": "scored",
+          "margin_primary": 2.556,
+          "margin_gate": 6.678,
+          "gate_passed": true,
+          "chars": 795
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 参照一覧",
+      "status": "no_eligible_candidate",
+      "accepted": false,
+      "final_margin_primary": 0.0,
+      "chars": 538,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 70.9,
+          "status": "rejected",
+          "reject_reason": "length_out_of_range"
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 42.6,
+          "status": "rejected",
+          "reject_reason": "length_out_of_range"
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 68.1,
+          "status": "rejected",
+          "reject_reason": "length_out_of_range"
+        }
+      ]
+    }
+  ]
+}

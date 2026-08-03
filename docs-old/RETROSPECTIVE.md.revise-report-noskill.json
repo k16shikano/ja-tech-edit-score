@@ -1,0 +1,785 @@
+{
+  "file": "/home/k16/dev/ja-tech-edit-score/docs/RETROSPECTIVE.md",
+  "out": "/home/k16/dev/ja-tech-edit-score/docs/RETROSPECTIVE.md.revised.md",
+  "model": "composer-2.5",
+  "n_candidates": 3,
+  "max_iters": 3,
+  "min_margin": 1.9,
+  "gate_min_margin": 0.0,
+  "n_sections": 14,
+  "n_processed": 13,
+  "n_accepted": 11,
+  "sections": [
+    {
+      "section": "これまでの実験の総括 > 出発点にあるデータと目標",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 3.1151,
+      "chars": 393,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 18.6,
+          "status": "scored",
+          "margin_primary": 0.614,
+          "margin_gate": 6.1105,
+          "gate_passed": true,
+          "chars": 406
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 16.5,
+          "status": "scored",
+          "margin_primary": 1.6998,
+          "margin_gate": 5.8792,
+          "gate_passed": true,
+          "chars": 401
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 10.4,
+          "status": "scored",
+          "margin_primary": 0.1315,
+          "margin_gate": 4.2657,
+          "gate_passed": true,
+          "chars": 397
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 9.9,
+          "status": "scored",
+          "margin_primary": 3.1151,
+          "margin_gate": 9.5951,
+          "gate_passed": true,
+          "chars": 393
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 22.3,
+          "status": "scored",
+          "margin_primary": 2.0667,
+          "margin_gate": 9.4061,
+          "gate_passed": true,
+          "chars": 407
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 12.4,
+          "status": "scored",
+          "margin_primary": 2.0398,
+          "margin_gate": 8.1878,
+          "gate_passed": true,
+          "chars": 390
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 二つの系統の選好モデル",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 2.2155,
+      "chars": 867,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 8.5,
+          "status": "scored",
+          "margin_primary": 0.9757,
+          "margin_gate": 5.9035,
+          "gate_passed": true,
+          "chars": 861
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 8.5,
+          "status": "scored",
+          "margin_primary": 2.2155,
+          "margin_gate": 8.156,
+          "gate_passed": true,
+          "chars": 867
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 4.6,
+          "status": "scored",
+          "margin_primary": 0.1009,
+          "margin_gate": 6.9648,
+          "gate_passed": true,
+          "chars": 850
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 難試験第1回と cross-encoder の採用",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 11.0175,
+      "chars": 347,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 6.9,
+          "status": "scored",
+          "margin_primary": 9.1928,
+          "margin_gate": 3.096,
+          "gate_passed": true,
+          "chars": 323
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 7.5,
+          "status": "scored",
+          "margin_primary": 11.0175,
+          "margin_gate": 6.7235,
+          "gate_passed": true,
+          "chars": 347
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 5.9,
+          "status": "scored",
+          "margin_primary": 10.3757,
+          "margin_gate": 3.8111,
+          "gate_passed": true,
+          "chars": 339
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 段落構成が学習データから欠けていた",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 3.9721,
+      "chars": 376,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 7.9,
+          "status": "scored",
+          "margin_primary": 0.6556,
+          "margin_gate": 4.4427,
+          "gate_passed": true,
+          "chars": 327
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 6.8,
+          "status": "scored",
+          "margin_primary": 3.9721,
+          "margin_gate": 10.3103,
+          "gate_passed": true,
+          "chars": 376
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 5.6,
+          "status": "scored",
+          "margin_primary": 0.0033,
+          "margin_gate": 8.4783,
+          "gate_passed": true,
+          "chars": 348
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 構成は載らなかった、という測定結果",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 2.0883,
+      "chars": 740,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 6.3,
+          "status": "scored",
+          "margin_primary": 0.1885,
+          "margin_gate": 5.4975,
+          "gate_passed": true,
+          "chars": 728
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 8.4,
+          "status": "scored",
+          "margin_primary": 0.3872,
+          "margin_gate": 6.1727,
+          "gate_passed": true,
+          "chars": 724
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 5.1,
+          "status": "scored",
+          "margin_primary": 0.7716,
+          "margin_gate": 3.7911,
+          "gate_passed": true,
+          "chars": 718
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 6.0,
+          "status": "scored",
+          "margin_primary": 0.7784,
+          "margin_gate": 3.8252,
+          "gate_passed": true,
+          "chars": 718
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 6.4,
+          "status": "scored",
+          "margin_primary": 0.8169,
+          "margin_gate": 5.6929,
+          "gate_passed": true,
+          "chars": 716
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 8.7,
+          "status": "scored",
+          "margin_primary": 2.0883,
+          "margin_gate": 6.0167,
+          "gate_passed": true,
+          "chars": 740
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > なぜ判別できないのか",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 3.4325,
+      "chars": 895,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 7.0,
+          "status": "scored",
+          "margin_primary": 1.6718,
+          "margin_gate": 4.227,
+          "gate_passed": true,
+          "chars": 876
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 13.6,
+          "status": "scored",
+          "margin_primary": 0.5581,
+          "margin_gate": 6.2013,
+          "gate_passed": true,
+          "chars": 870
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 11.8,
+          "status": "scored",
+          "margin_primary": 3.4325,
+          "margin_gate": 5.3937,
+          "gate_passed": true,
+          "chars": 895
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 段落遷移モデルの試みと否定的結果",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 2.504,
+      "chars": 641,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 8.2,
+          "status": "scored",
+          "margin_primary": 0.2698,
+          "margin_gate": 6.4469,
+          "gate_passed": true,
+          "chars": 625
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 9.0,
+          "status": "scored",
+          "margin_primary": 1.0594,
+          "margin_gate": 5.0293,
+          "gate_passed": true,
+          "chars": 629
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 7.9,
+          "status": "scored",
+          "margin_primary": 0.1241,
+          "margin_gate": 5.6245,
+          "gate_passed": true,
+          "chars": 620
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 10.7,
+          "status": "scored",
+          "margin_primary": 1.6643,
+          "margin_gate": 6.1113,
+          "gate_passed": true,
+          "chars": 634
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 11.9,
+          "status": "scored",
+          "margin_primary": 0.9339,
+          "margin_gate": 7.9287,
+          "gate_passed": true,
+          "chars": 604
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 8.7,
+          "status": "scored",
+          "margin_primary": 0.8191,
+          "margin_gate": 5.9353,
+          "gate_passed": true,
+          "chars": 627
+        },
+        {
+          "iter": 3,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 7.0,
+          "status": "scored",
+          "margin_primary": 0.8257,
+          "margin_gate": 8.1585,
+          "gate_passed": true,
+          "chars": 627
+        },
+        {
+          "iter": 3,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 15.6,
+          "status": "scored",
+          "margin_primary": 0.47,
+          "margin_gate": 8.1263,
+          "gate_passed": true,
+          "chars": 619
+        },
+        {
+          "iter": 3,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 10.6,
+          "status": "scored",
+          "margin_primary": 2.504,
+          "margin_gate": 8.5666,
+          "gate_passed": true,
+          "chars": 641
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 測定器の見直しと目標の絞り直し",
+      "status": "max_iters_reached",
+      "accepted": false,
+      "final_margin_primary": 1.631,
+      "chars": 997,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 12.9,
+          "status": "scored",
+          "margin_primary": 0.4522,
+          "margin_gate": 6.5032,
+          "gate_passed": true,
+          "chars": 1014
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 6.9,
+          "status": "scored",
+          "margin_primary": 0.3123,
+          "margin_gate": 3.6742,
+          "gate_passed": true,
+          "chars": 1019
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 5.3,
+          "status": "scored",
+          "margin_primary": 0.4821,
+          "margin_gate": 2.6869,
+          "gate_passed": true,
+          "chars": 1032
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 12.4,
+          "status": "scored",
+          "margin_primary": 0.9819,
+          "margin_gate": 6.7004,
+          "gate_passed": true,
+          "chars": 998
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 15.2,
+          "status": "scored",
+          "margin_primary": 0.7503,
+          "margin_gate": 6.0705,
+          "gate_passed": true,
+          "chars": 1011
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 10.9,
+          "status": "scored",
+          "margin_primary": 0.2987,
+          "margin_gate": 8.5466,
+          "gate_passed": true,
+          "chars": 1021
+        },
+        {
+          "iter": 3,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 13.9,
+          "status": "scored",
+          "margin_primary": 0.8957,
+          "margin_gate": 7.7707,
+          "gate_passed": true,
+          "chars": 1001
+        },
+        {
+          "iter": 3,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 7.4,
+          "status": "scored",
+          "margin_primary": 1.631,
+          "margin_gate": 7.5923,
+          "gate_passed": true,
+          "chars": 997
+        },
+        {
+          "iter": 3,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 10.0,
+          "status": "scored",
+          "margin_primary": 0.966,
+          "margin_gate": 9.522,
+          "gate_passed": true,
+          "chars": 998
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 機械推敲案を負例にした再学習と、その結果",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 4.7045,
+      "chars": 1891,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 12.3,
+          "status": "scored",
+          "margin_primary": 0.8438,
+          "margin_gate": 6.1724,
+          "gate_passed": true,
+          "chars": 2014
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 9.0,
+          "status": "scored",
+          "margin_primary": 0.9599,
+          "margin_gate": 3.1113,
+          "gate_passed": true,
+          "chars": 2010
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 13.3,
+          "status": "scored",
+          "margin_primary": 0.6121,
+          "margin_gate": 7.1717,
+          "gate_passed": true,
+          "chars": 2022
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 16.2,
+          "status": "scored",
+          "margin_primary": 1.4375,
+          "margin_gate": 6.3573,
+          "gate_passed": true,
+          "chars": 1995
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 23.8,
+          "status": "scored",
+          "margin_primary": 4.7045,
+          "margin_gate": 5.4346,
+          "gate_passed": true,
+          "chars": 1891
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 9.1,
+          "status": "scored",
+          "margin_primary": 0.9478,
+          "margin_gate": 8.3506,
+          "gate_passed": true,
+          "chars": 2011
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 文ベクトル列モデル（pref-sentseq）への転換",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 2.718,
+      "chars": 1207,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 9.6,
+          "status": "scored",
+          "margin_primary": 2.5446,
+          "margin_gate": 8.8881,
+          "gate_passed": true,
+          "chars": 1209
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 14.6,
+          "status": "scored",
+          "margin_primary": 2.718,
+          "margin_gate": 10.0119,
+          "gate_passed": true,
+          "chars": 1207
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 5.0,
+          "status": "scored",
+          "margin_primary": 0.4285,
+          "margin_gate": 6.3562,
+          "gate_passed": true,
+          "chars": 1183
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 上限の切り分けと採用構成の確定",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 4.44,
+      "chars": 937,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 7.1,
+          "status": "scored",
+          "margin_primary": 4.44,
+          "margin_gate": 5.7249,
+          "gate_passed": true,
+          "chars": 937
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 7.1,
+          "status": "scored",
+          "margin_primary": 1.0132,
+          "margin_gate": 6.0114,
+          "gate_passed": true,
+          "chars": 906
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 9.6,
+          "status": "scored",
+          "margin_primary": 1.2064,
+          "margin_gate": 5.5822,
+          "gate_passed": true,
+          "chars": 910
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 二軸運用という現在の結論",
+      "status": "converged",
+      "accepted": false,
+      "final_margin_primary": 1.7575,
+      "chars": 762,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 6.1,
+          "status": "scored",
+          "margin_primary": 1.1027,
+          "margin_gate": 4.2468,
+          "gate_passed": true,
+          "chars": 776
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 19.3,
+          "status": "scored",
+          "margin_primary": 0.3418,
+          "margin_gate": 6.8035,
+          "gate_passed": true,
+          "chars": 781
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 10.2,
+          "status": "scored",
+          "margin_primary": 1.6478,
+          "margin_gate": 7.3098,
+          "gate_passed": true,
+          "chars": 758
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 4.5,
+          "status": "scored",
+          "margin_primary": 1.6472,
+          "margin_gate": 7.3528,
+          "gate_passed": true,
+          "chars": 758
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 12.1,
+          "status": "scored",
+          "margin_primary": 1.7575,
+          "margin_gate": 6.6355,
+          "gate_passed": true,
+          "chars": 762
+        },
+        {
+          "iter": 2,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 5.1,
+          "status": "scored",
+          "margin_primary": 1.7061,
+          "margin_gate": 8.2154,
+          "gate_passed": true,
+          "chars": 756
+        },
+        {
+          "iter": 3,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 10.3,
+          "status": "scored",
+          "margin_primary": 1.6324,
+          "margin_gate": 7.9577,
+          "gate_passed": true,
+          "chars": 766
+        },
+        {
+          "iter": 3,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 7.5,
+          "status": "scored",
+          "margin_primary": 1.8363,
+          "margin_gate": 6.7381,
+          "gate_passed": true,
+          "chars": 755
+        },
+        {
+          "iter": 3,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 9.3,
+          "status": "scored",
+          "margin_primary": 1.7273,
+          "margin_gate": 7.2548,
+          "gate_passed": true,
+          "chars": 763
+        }
+      ]
+    },
+    {
+      "section": "これまでの実験の総括 > 参照一覧",
+      "status": "accepted",
+      "accepted": true,
+      "final_margin_primary": 3.8137,
+      "chars": 569,
+      "trail": [
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 34.8,
+          "status": "rejected",
+          "reject_reason": "length_out_of_range"
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "structure-v1",
+          "elapsed_s": 46.0,
+          "status": "rejected",
+          "reject_reason": "length_out_of_range"
+        },
+        {
+          "iter": 1,
+          "prompt_tag": "plain-v1",
+          "elapsed_s": 17.7,
+          "status": "scored",
+          "margin_primary": 3.8137,
+          "margin_gate": 9.5713,
+          "gate_passed": true,
+          "chars": 569
+        }
+      ]
+    }
+  ]
+}
