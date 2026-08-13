@@ -20,6 +20,9 @@ data/hard_eval/*
 !data/hard_eval/README.md
 tmp/
 
+# 手元専用（公開 GitHub に載せない）
+docs/DOK-PLAN.md
+
 # Other output under outputs/ (pref-static model is bundled)
 outputs/*
 !outputs/README.md

@@ -20,7 +20,7 @@ import uvicorn
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from export_edit_sft import INSTRUCTION  # noqa: E402
+from export_edit_sft import INSTRUCTION, INSTRUCTION_LEGACY, INSTRUCTION_V1  # noqa: E402
 
 DEFAULT_TRAIN = ROOT / "data" / "edit_sft" / "train.jsonl"
 DEFAULT_HELDOUT = ROOT / "data" / "edit_sft" / "heldout.jsonl"
@@ -28,6 +28,7 @@ DEFAULT_STATE = ROOT / "data" / "edit_sft" / "review_state.json"
 INDEX_HTML = ROOT / "web" / "edit_sft_review.html"
 
 USER_PREFIX = INSTRUCTION + "\n\n"
+USER_PREFIX_LEGACY = INSTRUCTION_LEGACY + "\n\n"
 
 
 class ReviewDecision(BaseModel):
@@ -51,12 +52,13 @@ class ExportBody(BaseModel):
 
 
 def draft_from_user_content(content: str) -> str:
-  if content.startswith(USER_PREFIX):
-    return content[len(USER_PREFIX) :]
-  # 旧データ互換: 先頭行が指示なら残り
-  if content.startswith(INSTRUCTION):
-    parts = content.split("\n\n", 1)
-    return parts[1] if len(parts) == 2 else content
+  for prefix in (USER_PREFIX, USER_PREFIX_LEGACY):
+    if content.startswith(prefix):
+      return content[len(prefix) :]
+  for instr in (INSTRUCTION, INSTRUCTION_LEGACY):
+    if content.startswith(instr):
+      parts = content.split("\n\n", 1)
+      return parts[1] if len(parts) == 2 else content
   return content
 
 

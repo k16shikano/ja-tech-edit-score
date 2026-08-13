@@ -23,7 +23,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-from export_edit_sft import INSTRUCTION
+from export_edit_sft import INSTRUCTION, INSTRUCTION_LEGACY, INSTRUCTION_V1
 
 QUEUES = (
   {
@@ -66,13 +66,16 @@ def parse_chat_row(obj: dict) -> tuple[str, str, dict]:
   for msg in obj.get("messages") or []:
     if msg.get("role") == "user":
       content = str(msg.get("content") or "")
-      prefix = INSTRUCTION + "\n\n"
-      if content.startswith(prefix):
-        draft = content[len(prefix) :]
-      elif "\n\n" in content:
-        draft = content.split("\n\n", 1)[-1]
+      for instr in (INSTRUCTION, INSTRUCTION_V1, INSTRUCTION_LEGACY):
+        prefix = instr + "\n\n"
+        if content.startswith(prefix):
+          draft = content[len(prefix) :]
+          break
       else:
-        draft = content
+        if "\n\n" in content:
+          draft = content.split("\n\n", 1)[-1]
+        else:
+          draft = content
     elif msg.get("role") == "assistant":
       revised = str(msg.get("content") or "")
   meta = dict(obj.get("meta") or {})
