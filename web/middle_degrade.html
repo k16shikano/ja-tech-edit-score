@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>中間推敲の劣化確認</title>
+  <style>
+    :root {
+      --bg: #f7f5f0;
+      --ink: #1c1b19;
+      --muted: #5c574e;
+      --line: #d9d2c4;
+      --card: #fffefb;
+      --accent: #2f5d50;
+      --warn: #8a4b2e;
+      --del-bg: #f8d7da;
+      --del-ink: #842029;
+      --ins-bg: #d1e7dd;
+      --ins-ink: #0f5132;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+    }
+    header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--line);
+      background: var(--card);
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    h1 { font-size: 1.1rem; margin: 0; font-weight: 650; }
+    #progress { color: var(--muted); font-size: 0.95rem; }
+    main { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+    .lead { color: var(--muted); margin: 0 0 1rem; }
+    .label {
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin: 0 0 0.35rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 1rem 1.1rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.98rem;
+      max-height: 42vh;
+      overflow: auto;
+    }
+    .panel.diff-view {
+      white-space: normal;
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+    .diff-line {
+      display: block;
+      padding: 0.12rem 0.35rem;
+      border-radius: 3px;
+      margin: 0.08rem 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .diff-gutter {
+      display: inline-block;
+      width: 1.2em;
+      color: var(--muted);
+      font-family: ui-monospace, monospace;
+    }
+    .diff-eq { color: var(--ink); }
+    .diff-ins-line { background: var(--ins-bg); color: var(--ins-ink); }
+    .diff-chg { background: #fff6d8; }
+    .diff-ins { background: var(--ins-bg); color: var(--ins-ink); }
+    .diff-del { background: var(--del-bg); color: var(--del-ink); text-decoration: line-through; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .view-toggle button {
+      font: inherit;
+      font-size: 0.8rem;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--muted);
+      border-radius: 4px;
+      padding: 0.15rem 0.45rem;
+      cursor: pointer;
+    }
+    .view-toggle button.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .legend { font-size: 0.8rem; color: var(--muted); margin: 0.4rem 0 0.8rem; }
+    textarea {
+      width: 100%;
+      min-height: 4rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.6rem 0.7rem;
+      font: inherit;
+      background: var(--card);
+    }
+    .actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+    button.primary, button.danger {
+      font: inherit;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      padding: 0.65rem 1.1rem;
+      cursor: pointer;
+    }
+    button.primary { background: var(--accent); color: #fff; }
+    button.danger { background: var(--warn); color: #fff; }
+    #done-msg {
+      display: none;
+      margin-top: 2rem;
+      padding: 1.25rem;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 6px;
+    }
+    #err { color: var(--warn); margin: 0.75rem 0 0; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>中間推敲の劣化確認</h1>
+    <div id="progress">読込中…</div>
+  </header>
+  <main>
+    <p class="lead">生成が下書きより悪くなっていないかだけを付けます。人間の推敲とは比べません。</p>
+    <div id="judge-view">
+      <p class="legend">
+        <span class="diff-del">− 下書きにあって生成に無い</span>
+        ／
+        <span class="diff-ins">＋ 生成で増えた</span>
+      </p>
+      <div class="grid">
+        <div>
+          <p class="label"><span>下書き</span></p>
+          <div class="panel" id="draft"></div>
+        </div>
+        <div>
+          <p class="label">
+            <span>生成</span>
+            <span class="view-toggle">
+              <button type="button" data-mode="diff" class="active">差分</button>
+              <button type="button" data-mode="full">全文</button>
+            </span>
+          </p>
+          <div class="panel diff-view" id="gen"></div>
+        </div>
+      </div>
+      <label class="label" for="comment" style="display:block;margin-top:1rem">コメント（任意）</label>
+      <textarea id="comment" placeholder="気になった点があれば"></textarea>
+      <div class="actions">
+        <button class="primary" id="btn-ok">下書きより劣化していない</button>
+        <button class="danger" id="btn-degraded">下書きより劣化している</button>
+      </div>
+      <p id="err"></p>
+    </div>
+    <div id="done-msg">いま出せる件はすべて付け終わりました。生成がまだなら、生成のあとでこのページを再読込してください。</div>
+  </main>
+  <script>
+    let currentId = null;
+    let currentGen = "";
+    let currentDiff = "";
+    let viewMode = "diff";
+
+    const draftEl = document.getElementById("draft");
+    const genEl = document.getElementById("gen");
+    const progressEl = document.getElementById("progress");
+    const errEl = document.getElementById("err");
+    const commentEl = document.getElementById("comment");
+    const judgeView = document.getElementById("judge-view");
+    const doneMsg = document.getElementById("done-msg");
+
+    function showGen() {
+      if (viewMode === "full") {
+        genEl.classList.remove("diff-view");
+        genEl.textContent = currentGen;
+      } else {
+        genEl.classList.add("diff-view");
+        genEl.innerHTML = currentDiff;
+      }
+    }
+
+    document.querySelectorAll(".view-toggle button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        viewMode = btn.getAttribute("data-mode") || "diff";
+        document.querySelectorAll(".view-toggle button").forEach((b) => {
+          b.classList.toggle("active", b === btn);
+        });
+        showGen();
+      });
+    });
+
+    async function refreshStatus() {
+      const res = await fetch("/api/status");
+      const st = await res.json();
+      progressEl.textContent =
+        `残り ${st.remaining} ／ 生成済み ${st.with_revision} ／ 節 ${st.total_items} ／ 済 ${st.done}`;
+    }
+
+    async function loadNext() {
+      errEl.textContent = "";
+      await refreshStatus();
+      const res = await fetch("/api/next");
+      const data = await res.json();
+      if (data.done) {
+        judgeView.style.display = "none";
+        doneMsg.style.display = "block";
+        currentId = null;
+        return;
+      }
+      judgeView.style.display = "block";
+      doneMsg.style.display = "none";
+      currentId = data.item_id;
+      currentGen = data.generated_text || "";
+      currentDiff = data.diff_html || "";
+      draftEl.textContent = data.source_text || "";
+      commentEl.value = "";
+      showGen();
+    }
+
+    async function submit(choice) {
+      if (!currentId) return;
+      errEl.textContent = "";
+      const res = await fetch("/api/judge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_id: currentId,
+          choice,
+          comment: commentEl.value || "",
+        }),
+      });
+      if (!res.ok) {
+        errEl.textContent = "保存に失敗しました。";
+        return;
+      }
+      await loadNext();
+    }
+
+    document.getElementById("btn-ok").addEventListener("click", () => submit("ok"));
+    document.getElementById("btn-degraded").addEventListener("click", () => submit("degraded"));
+    loadNext().catch((err) => {
+      errEl.textContent = String(err);
+    });
+  </script>
+</body>
+</html>
