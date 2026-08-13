@@ -7,23 +7,29 @@ COPY requirements-edit-sft.txt ./
 RUN pip install --no-cache-dir -U pip \
   && pip install --no-cache-dir -r requirements-edit-sft.txt
 
-COPY scripts/steering_utils.py scripts/train_edit_sft.py scripts/
+COPY scripts/steering_utils.py scripts/train_edit_sft.py \
+  scripts/generate_edit_sft.py scripts/generation_integrity.py scripts/
 COPY scripts/dok_edit_sft.sh /app/dok_edit_sft.sh
 RUN chmod +x /app/dok_edit_sft.sh
 
-# 学習データ（非公開原稿由来。非公開レジストリにのみ push）
+# 学習データと、チェックポイント選定用の少数生成に使う heldout・判定対象
+# （非公開原稿由来。非公開レジストリにのみ push）
 COPY data/edit_sft_all/train.jsonl data/edit_sft_all/train.jsonl
 COPY data/edit_sft_all/stats.json data/edit_sft_all/stats.json
+COPY data/edit_sft_all/heldout.jsonl data/edit_sft_all/heldout.jsonl
+COPY data/blind_eval/items.jsonl data/blind_eval/items.jsonl
 
 ENV PYTHONUNBUFFERED=1
 ENV MODEL=Qwen/Qwen3-8B
 ENV LIMIT=0
-ENV EPOCHS=15
+ENV EPOCHS=6
 ENV LORA_R=16
 ENV LORA_ALPHA=32
 ENV MAX_SEQ_LENGTH=8192
 ENV BATCH_SIZE=1
 ENV GRAD_ACCUM=8
 ENV LEARNING_RATE=2e-4
+ENV OUT_DIR=outputs/Qwen__Qwen3-8B-pairsplit-v2
+ENV TRUST_REMOTE_CODE=1
 
 ENTRYPOINT ["/bin/bash", "/app/dok_edit_sft.sh"]

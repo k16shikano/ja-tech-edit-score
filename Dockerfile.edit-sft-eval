@@ -8,26 +8,36 @@ COPY requirements-edit-sft.txt ./
 RUN pip install --no-cache-dir -U pip \
   && pip install --no-cache-dir -r requirements-edit-sft.txt
 
-COPY scripts/generate_edit_sft.py scripts/chat_edit_sft.py scripts/
+COPY scripts/generate_edit_sft.py scripts/chat_edit_sft.py \
+  scripts/generation_integrity.py scripts/
 COPY scripts/dok_edit_sft_eval.sh /app/dok_edit_sft_eval.sh
 RUN chmod +x /app/dok_edit_sft_eval.sh
 
 # 非公開原稿由来。非公開レジストリのみへ push
 # adapter は build_push_edit_sft_eval_image.sh が ADAPTER_SRC から _dok_adapter へ Staging する
 COPY data/edit_sft_all/heldout.jsonl data/edit_sft_all/heldout.jsonl
+COPY data/blind_eval/items.jsonl data/blind_eval/items.jsonl
 COPY data/tech-writing-norms.md data/tech-writing-norms.md
 COPY outputs/edit-sft/_dok_adapter /app/adapter
+# エポック選定用（CKPTS_SRC 未指定なら空ディレクトリ）
+COPY outputs/edit-sft/_dok_checkpoints /app/checkpoints
 
 ENV PYTHONUNBUFFERED=1
 ENV MODEL=Qwen/Qwen3-8B
 ENV ADAPTER=/app/adapter
-ENV LIMIT=64
-ENV EVAL_MODES="adapter base_norms"
-ENV MAX_NEW_TOKENS=512
+ENV LIMIT=0
+ENV EVAL_MODES="base adapter"
+ENV MAX_NEW_TOKENS=4096
 ENV MAX_INPUT_TOKENS=3072
 ENV LOAD_IN_4BIT=1
 ENV DEVICE=cuda
 ENV TRUST_REMOTE_CODE=1
+ENV NUM_SAMPLES=8
+ENV IDS_FILE=data/blind_eval/items.jsonl
+ENV OUT_DIR=outputs/edit-sft-eval-v3
+ENV TEMPERATURE=0.7
+ENV TOP_P=0.9
+ENV SEED=0
 ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 ENTRYPOINT ["/bin/bash", "/app/dok_edit_sft_eval.sh"]

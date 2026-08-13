@@ -4,8 +4,7 @@
 対話検証用。バッチ評価（generate_edit_sft）とは次が違う。
 
 - 既定はサンプリング（温度付き）。同じ下書きでも回ごとに違う案が出る。
-- 指示に「推敲後本文のみ」を明示する（素の Qwen のメタ後書きを抑える）。
-  学習時の短指示そのものではない。base / adapter 両方に同じ指示を使う。
+- 指示文は学習・バッチ生成と同一（export_edit_sft.INSTRUCTION）。
 
 原稿本文は端末に出るだけなので、ログや成果物に残さないこと。
 
@@ -21,15 +20,10 @@ import argparse
 import sys
 from pathlib import Path
 
-# 学習時の短指示（バッチ評価・SFT と同文）
-TRAIN_INSTRUCTION = "次の下書きを、意味を保ったまま日本語の技術文書として推敲せよ。"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from export_edit_sft import INSTRUCTION  # noqa: E402
 
-# 対話検証用。本文以外を出させない。base と adapter に同じものを渡す。
-CHAT_INSTRUCTION = (
-  "次の下書きを、意味を保ったまま日本語の技術文書として推敲せよ。\n"
-  "出力は推敲後の本文のみ。前置き・後書き・変更点の説明・「このようにすると…」"
-  "のようなメタ文言は書くな。"
-)
+CHAT_INSTRUCTION = INSTRUCTION
 
 
 def read_draft() -> str | None:
@@ -72,11 +66,6 @@ def main() -> None:
     "--enable-thinking",
     action="store_true",
     help="Qwen3 思考モード（既定は無効）",
-  )
-  parser.add_argument(
-    "--train-prompt",
-    action="store_true",
-    help="学習時と同じ短指示にする（メタ禁止なし。対話検証の既定ではない）",
   )
   parser.add_argument(
     "--greedy",
@@ -129,7 +118,7 @@ def main() -> None:
     if args.mode == "adapter" and Path(args.adapter).is_dir()
     else args.base_model
   )
-  instruction = TRAIN_INSTRUCTION if args.train_prompt else CHAT_INSTRUCTION
+  instruction = CHAT_INSTRUCTION
   decode_desc = (
     "greedy"
     if args.greedy

@@ -1,7 +1,7 @@
 #!/bin/bash
-# DOK: レビュー済み keep 分割で評価器を学習する
-#   BT      = 空行なし hunk のみ → outputs/pref-bt-keep
-#   sentseq = 節（空行あり）のみ → outputs/pref-sentseq-keep
+# DOK: レビュー済み keep 分割で評価器を学習する（PLAN: ペア単位分割後）
+#   BT      = 空行なし hunk のみ → outputs/pref-bt-keep-pairsplit
+#   sentseq = 節（空行あり）のみ → outputs/pref-sentseq-keep-pairsplit
 #   MODE=bt | sentseq | both（既定）
 set -euo pipefail
 cd /app
@@ -14,6 +14,9 @@ BT_TRAIN_FILE="${BT_TRAIN_FILE:-data/pref_keep_split_hunk/train.jsonl}"
 BT_EVAL_FILE="${BT_EVAL_FILE:-data/pref_keep_split_hunk/valid.jsonl}"
 SENTSEQ_TRAIN_FILE="${SENTSEQ_TRAIN_FILE:-data/pref_keep_split_section/train.jsonl}"
 SENTSEQ_EVAL_FILE="${SENTSEQ_EVAL_FILE:-data/pref_keep_split_section/valid.jsonl}"
+
+BT_OUT="${BT_OUT:-outputs/pref-bt-keep-pairsplit}"
+SENTSEQ_OUT="${SENTSEQ_OUT:-outputs/pref-sentseq-keep-pairsplit}"
 
 # BT
 BT_MAX_SEQ_LENGTH="${BT_MAX_SEQ_LENGTH:-512}"
@@ -34,32 +37,32 @@ art="${SAKURA_ARTIFACT_DIR:-/opt/artifact}"
 mkdir -p "${art}"
 
 run_bt() {
-  echo "=== train pref-bt-keep from hunk split (device=${DEVICE}) ==="
-  echo "train=${BT_TRAIN_FILE} eval=${BT_EVAL_FILE}"
+  echo "=== train pref-bt-keep-pairsplit from hunk split (device=${DEVICE}) ==="
+  echo "train=${BT_TRAIN_FILE} eval=${BT_EVAL_FILE} out=${BT_OUT}"
   python scripts/train_pref_bt.py \
     --model "${EMBED_MODEL}" \
     --train-file "${BT_TRAIN_FILE}" \
     --eval-file "${BT_EVAL_FILE}" \
-    --output-dir outputs/pref-bt-keep \
+    --output-dir "${BT_OUT}" \
     --max-seq-length "${BT_MAX_SEQ_LENGTH}" \
     --batch-size "${BT_BATCH_SIZE}" \
     --epochs "${BT_EPOCHS}" \
     --lr "${BT_LR}" \
     --text-prefix "文章: " \
     --device "${DEVICE}"
-  mkdir -p "${art}/pref-bt-keep"
-  cp -a outputs/pref-bt-keep/. "${art}/pref-bt-keep/"
-  printf '%s\n' "unit=hunk" > "${art}/pref-bt-keep/DATA_UNIT.txt"
+  mkdir -p "${art}/pref-bt-keep-pairsplit"
+  cp -a "${BT_OUT}/." "${art}/pref-bt-keep-pairsplit/"
+  printf '%s\n' "unit=hunk" "split=pair_stratified" > "${art}/pref-bt-keep-pairsplit/DATA_UNIT.txt"
 }
 
 run_sentseq() {
-  echo "=== train pref-sentseq-keep from section split (device=${DEVICE}) ==="
-  echo "train=${SENTSEQ_TRAIN_FILE} eval=${SENTSEQ_EVAL_FILE}"
+  echo "=== train pref-sentseq-keep-pairsplit from section split (device=${DEVICE}) ==="
+  echo "train=${SENTSEQ_TRAIN_FILE} eval=${SENTSEQ_EVAL_FILE} out=${SENTSEQ_OUT}"
   python scripts/train_pref_sentseq.py \
     --model "${EMBED_MODEL}" \
     --train-file "${SENTSEQ_TRAIN_FILE}" \
     --eval-file "${SENTSEQ_EVAL_FILE}" \
-    --output-dir outputs/pref-sentseq-keep \
+    --output-dir "${SENTSEQ_OUT}" \
     --max-seq-length "${SENTSEQ_MAX_SEQ_LENGTH}" \
     --max-sents "${SENTSEQ_MAX_SENTS}" \
     --d-model "${SENTSEQ_D_MODEL}" \
@@ -69,9 +72,9 @@ run_sentseq() {
     --lr "${SENTSEQ_LR}" \
     --text-prefix "文章: " \
     --device "${DEVICE}"
-  mkdir -p "${art}/pref-sentseq-keep"
-  cp -a outputs/pref-sentseq-keep/. "${art}/pref-sentseq-keep/"
-  printf '%s\n' "unit=section" > "${art}/pref-sentseq-keep/DATA_UNIT.txt"
+  mkdir -p "${art}/pref-sentseq-keep-pairsplit"
+  cp -a "${SENTSEQ_OUT}/." "${art}/pref-sentseq-keep-pairsplit/"
+  printf '%s\n' "unit=section" "split=pair_stratified" > "${art}/pref-sentseq-keep-pairsplit/DATA_UNIT.txt"
 }
 
 case "${MODE}" in

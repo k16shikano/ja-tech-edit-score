@@ -19,12 +19,30 @@ import sys
 from pathlib import Path
 
 
+def load_ids_file(path: Path) -> set[str]:
+  ids: set[str] = set()
+  with path.open("r", encoding="utf-8") as f:
+    for line in f:
+      line = line.strip()
+      if not line:
+        continue
+      if line.startswith("{"):
+        obj = json.loads(line)
+        rid = str(obj.get("id") or (obj.get("meta") or {}).get("id") or "")
+      else:
+        rid = line
+      if rid:
+        ids.add(rid)
+  return ids
+
+
 def load_heldout(
   path: Path,
   *,
   limit: int,
   min_chars: int,
   max_chars: int,
+  ids_allow: set[str] | None = None,
 ) -> list[dict]:
   by_project: dict[str, list[dict]] = {}
   with path.open("r", encoding="utf-8") as f:
@@ -40,9 +58,12 @@ def load_heldout(
       if max_chars > 0 and len(draft) > max_chars:
         continue
       meta = obj.get("meta") or {}
+      rid = str(meta.get("id") or "")
+      if ids_allow is not None and rid not in ids_allow:
+        continue
       pid = str(meta.get("project_id") or "(unknown)")
       row = {
-        "id": meta.get("id", ""),
+        "id": rid,
         "project_id": pid,
         "user_sft": user,
         "draft": draft,
@@ -238,11 +259,14 @@ def fit_chat_inputs(
 
 
 def revision_max_new_tokens(tokenizer, draft: str, *, mode: str, cap: int) -> int:
-  """base_norms では下書き長に応じて生成上限を絞り、不当な膨張を抑える。"""
-  if mode != "base_norms":
-    return cap
+  """下書き長に応じた生成上限。
+
+  推敲の出力は下書きと同程度の長さになる（人間 gold は下書きの約 1.04 倍）。
+  固定 512 では長い節が途中で切れ、欠落と区別できない生成になっていたため、
+  全モードで下書きトークン数の 1.5 倍 + 64 を上限とし、cap で頭打ちにする。
+  """
   n = len(tokenizer.encode(draft, add_special_tokens=False))
-  return max(32, min(cap, int(n * 1.5) + 24))
+  return max(256, min(cap, int(n * 1.5) + 64))
 
 
 def main() -> None:
@@ -261,7 +285,21 @@ def main() -> None:
   parser.add_argument("--limit", type=int, default=0, help="0 = all matching samples")
   parser.add_argument("--min-chars", type=int, default=1)
   parser.add_argument("--max-chars", type=int, default=0, help="0 = no upper bound")
-  parser.add_argument("--max-new-tokens", type=int, default=512)
+  parser.add_argument(
+    "--ids-file",
+    default="",
+    help="id 一覧（1行1id または items.jsonl）。指定時はその id だけ生成",
+  )
+  parser.add_argument(
+    "--num-samples",
+    type=int,
+    default=0,
+    help="サンプリング生成の本数。0 なら貪欲 1 本",
+  )
+  parser.add_argument("--temperature", type=float, default=0.7)
+  parser.add_argument("--top-p", type=float, default=0.9)
+  parser.add_argument("--seed", type=int, default=0)
+  parser.add_argument("--max-new-tokens", type=int, default=4096, help="生成上限の頭打ち。実際は下書き長に比例")
   parser.add_argument(
     "--max-input-tokens",
     type=int,
@@ -288,14 +326,20 @@ def main() -> None:
       raise SystemExit(f"missing norms file: {norms_path}")
     norms_text = norms_path.read_text(encoding="utf-8").strip()
 
+  ids_allow = load_ids_file(Path(args.ids_file)) if args.ids_file else None
   samples = load_heldout(
     Path(args.heldout),
     limit=args.limit,
     min_chars=args.min_chars,
     max_chars=args.max_chars,
+    ids_allow=ids_allow,
   )
   if not samples:
     raise SystemExit("no heldout samples matched length filters")
+
+  do_sample = args.num_samples > 0
+  n_draws = args.num_samples if do_sample else 1
+  gen_kind = "sample" if do_sample else "greedy"
 
   device = args.device
   if device == "cuda" and not torch.cuda.is_available():
@@ -320,10 +364,19 @@ def main() -> None:
       dtype = torch.float32
 
   load_in_4bit = bool(args.load_in_4bit) and device == "cuda"
-  tok_src = args.adapter if (args.mode == "adapter" and Path(args.adapter).is_dir()) else args.base_model
+  # 途中チェックポイントには tokenizer が無いことがあるので、その場合はベースから読む
+  tok_src = args.base_model
+  if args.mode == "adapter" and Path(args.adapter).is_dir():
+    has_tok = any(
+      (Path(args.adapter) / f).is_file()
+      for f in ("tokenizer.json", "tokenizer_config.json")
+    )
+    if has_tok:
+      tok_src = args.adapter
   print(
     f"mode={args.mode} model={args.base_model} device={device} "
     f"dtype={dtype} 4bit={load_in_4bit} n={len(samples)} "
+    f"gen={gen_kind} draws={n_draws} temp={args.temperature} top_p={args.top_p} "
     f"max_input={args.max_input_tokens} max_new={args.max_new_tokens} "
     f"enable_thinking={bool(args.enable_thinking)}",
     flush=True,
@@ -382,32 +435,54 @@ def main() -> None:
       print(
         f"[{i}/{len(samples)}] {sample['project_id']} "
         f"draft_chars={len(sample['draft'])} input_tokens={n_in} "
-        f"max_new={max_new} thinking={bool(args.enable_thinking)}",
+        f"max_new={max_new} thinking={bool(args.enable_thinking)} "
+        f"draws={n_draws}",
         flush=True,
       )
-      with torch.no_grad():
-        out_ids = model.generate(
-          **inputs,
-          max_new_tokens=max_new,
-          do_sample=False,
-          pad_token_id=tokenizer.pad_token_id,
-          use_cache=True,
-        )
-      gen_ids = out_ids[0, inputs["input_ids"].shape[1] :]
-      text = decode_generated(tokenizer, gen_ids)
-      row = {
-        "id": sample["id"],
-        "project_id": sample["project_id"],
-        "mode": args.mode,
-        "draft": sample["draft"],
-        "gold": sample["gold"],
-        "generated": text,
-        "input_tokens": n_in,
-      }
-      fout.write(json.dumps(row, ensure_ascii=False) + "\n")
-      fout.flush()
+      for draw_i in range(n_draws):
+        gen_kwargs: dict = {
+          "max_new_tokens": max_new,
+          "pad_token_id": tokenizer.pad_token_id,
+          "use_cache": True,
+        }
+        if do_sample:
+          gen_kwargs.update(
+            do_sample=True,
+            temperature=args.temperature,
+            top_p=args.top_p,
+          )
+          # 再現性: 入力×ドロー番号からシードを決める
+          torch.manual_seed(args.seed + i * 1009 + draw_i)
+          if device == "cuda":
+            torch.cuda.manual_seed_all(args.seed + i * 1009 + draw_i)
+        else:
+          gen_kwargs["do_sample"] = False
+
+        with torch.no_grad():
+          out_ids = model.generate(**inputs, **gen_kwargs)
+        gen_ids = out_ids[0, inputs["input_ids"].shape[1] :]
+        text = decode_generated(tokenizer, gen_ids)
+        row = {
+          "id": sample["id"],
+          "project_id": sample["project_id"],
+          "mode": args.mode,
+          "draft": sample["draft"],
+          "gold": sample["gold"],
+          "generated": text,
+          "input_tokens": n_in,
+          "generation": gen_kind,
+          "sample_index": draw_i if do_sample else 0,
+          "temperature": args.temperature if do_sample else None,
+          "top_p": args.top_p if do_sample else None,
+          "seed": args.seed if do_sample else None,
+        }
+        fout.write(json.dumps(row, ensure_ascii=False) + "\n")
+        fout.flush()
+        if device == "cuda":
+          del out_ids
+          torch.cuda.empty_cache()
       if device == "cuda":
-        del out_ids, inputs
+        del inputs
         torch.cuda.empty_cache()
 
   print(f"wrote {out_path}", flush=True)

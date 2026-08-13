@@ -4,12 +4,17 @@
 !scripts/
 !scripts/generate_edit_sft.py
 !scripts/chat_edit_sft.py
+!scripts/generation_integrity.py
 !scripts/dok_edit_sft_eval.sh
 !data/
 !data/edit_sft_all/
 !data/edit_sft_all/heldout.jsonl
+!data/blind_eval/
+!data/blind_eval/items.jsonl
 !data/tech-writing-norms.md
 !outputs/
 !outputs/edit-sft/
 !outputs/edit-sft/_dok_adapter/
 !outputs/edit-sft/_dok_adapter/**
+!outputs/edit-sft/_dok_checkpoints/
+!outputs/edit-sft/_dok_checkpoints/**

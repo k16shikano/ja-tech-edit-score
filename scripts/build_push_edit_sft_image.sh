@@ -7,14 +7,17 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 test -s data/edit_sft_all/train.jsonl || {
-  echo "data/edit_sft_all/train.jsonl が無い。先に make edit-sft-export-keeps" >&2
+  echo "data/edit_sft_all/train.jsonl が無い。先に make pairsplit-data" >&2
   exit 1
 }
-if ! grep -q 'review_status' data/edit_sft_all/stats.json data/edit_sft_all/train.jsonl 2>/dev/null; then
-  echo "WARNING: train.jsonl に review_status が見えない。export-keeps を確認すること" >&2
+# pairsplit 経由なら stats に split 情報がある。旧 export-keeps 経路なら review_status がある。
+if [[ -f data/pairsplit/report.json ]]; then
+  echo "pairsplit: $(python3 -c "import json; r=json.load(open('data/pairsplit/report.json')); print(f\"train={r['n_train']} heldout={r['n_heldout']} seed={r['seed']}\")")"
+elif ! grep -q 'review_status' data/edit_sft_all/stats.json data/edit_sft_all/train.jsonl 2>/dev/null; then
+  echo "WARNING: pairsplit でも review_status でもない。make pairsplit-data を確認すること" >&2
 fi
 test -n "${REGISTRY:-}" || {
-  echo "REGISTRY=（コンテナレジストリ名）.sakuracr.jp を export してから実行" >&2
+  echo "REGISTRY 未設定。例: export REGISTRY=ja-tech-edit.sakuracr.jp" >&2
   exit 1
 }
 
