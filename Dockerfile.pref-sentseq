@@ -7,9 +7,9 @@ COPY requirements-pref-sentseq.txt ./
 RUN pip install --no-cache-dir -U pip \
   && pip install --no-cache-dir -r requirements-pref-sentseq.txt
 
-COPY scripts/train_pref_sentseq.py scripts/eval_pref_sentseq_xproject.py scripts/
+COPY scripts/train_pref_sentseq.py scripts-old/eval_pref_sentseq_xproject.py scripts/
 COPY scripts/sentseq_utils.py scripts/pref_static_utils.py scripts/
-COPY scripts/dok_pref_sentseq.sh /app/dok_pref_sentseq.sh
+COPY scripts-old/dok_pref_sentseq.sh /app/dok_pref_sentseq.sh
 RUN chmod +x /app/dok_pref_sentseq.sh
 
 # 選好データ（非公開原稿由来。非公開レジストリにのみ push）

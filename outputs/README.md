@@ -8,7 +8,7 @@
 | `pref-static/model.joblib` | 分類器（StandardScaler + LogisticRegression） |
 | `pref-static/metrics.json` | 学習時の評価指標 |
 
-`make train` で上書き更新する。
+公開 CLI の既定。学び直しは `scripts-old/train_pref_static.py`（`make train` は外した）。
 `make clean-model` は再学習の前処理としてこのディレクトリを削除する。
 
 ## 実験出力（ローカル、原則コミットしない）

@@ -269,7 +269,7 @@ def run_check(params: dict) -> dict:
   if not (model_dir / "model.joblib").is_file():
     raise SystemExit(
       f"model not found: {model_dir / 'model.joblib'}\n"
-      "expected bundled model at outputs/pref-static/; run `make train` to rebuild"
+      "expected bundled model at outputs/pref-static/"
     )
   loaded = load_pref_model(model_dir)
   return build_check_payload(params, loaded)

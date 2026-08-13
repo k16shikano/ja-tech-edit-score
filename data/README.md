@@ -24,8 +24,8 @@
 - `batch_import_repos.txt`：一括採掘するリポジトリパスの一覧
 
 生成はリポジトリルートで `make data`（hunk）または `make mine-sections`（節）を実行する。
-選好評価モデルの再学習は `make train`（出力は `outputs/pref-static/` を上書きする）。
-推論に使うモデルはリポジトリ同梱の `outputs/pref-static/` を参照する。
+選好データの現行は `make pairsplit-data` / `make pref-keep-data`。旧い `pref_dataset` と `make train`（pref-static）は `scripts-old/`。
+推論の公開 CLI は同梱の `outputs/pref-static/` を参照する。
 
 ## 選抜難試験（Hard Eval）
 

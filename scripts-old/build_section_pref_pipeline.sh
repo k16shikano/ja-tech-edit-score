@@ -26,18 +26,18 @@ test -s "$SECTION_RAW" || {
 }
 
 echo "[1/7] import section examples -> $SECTION_DB"
-"$PYTHON" "$ROOT/scripts/import_examples.py" \
+"$PYTHON" "$ROOT/scripts-old/import_examples.py" \
   --input "$SECTION_RAW" \
   --db "$SECTION_DB"
 
 echo "[2/7] build DPO -> $DPO_SECTION"
-"$PYTHON" "$ROOT/scripts/build_dpo_dataset.py" \
+"$PYTHON" "$ROOT/scripts-old/build_dpo_dataset.py" \
   --db "$SECTION_DB" \
   --out "$DPO_SECTION" \
   --accepted-only
 
 echo "[3/7] curate DPO (max_chars=$MAX_CHARS) -> $DPO_SECTION_CURATED"
-"$PYTHON" "$ROOT/scripts/curate_dpo_dataset.py" \
+"$PYTHON" "$ROOT/scripts-old/curate_dpo_dataset.py" \
   --input "$DPO_SECTION" \
   --out "$DPO_SECTION_CURATED" \
   --max-chars "$MAX_CHARS" \
@@ -45,7 +45,7 @@ echo "[3/7] curate DPO (max_chars=$MAX_CHARS) -> $DPO_SECTION_CURATED"
   --report "$CURATE_REPORT"
 
 echo "[4/7] build pref (swap) -> $PREF_SECTION"
-"$PYTHON" "$ROOT/scripts/build_pref_dataset.py" \
+"$PYTHON" "$ROOT/scripts-old/build_pref_dataset.py" \
   --input "$DPO_SECTION_CURATED" \
   --out "$PREF_SECTION" \
   --augment-swap
@@ -98,10 +98,10 @@ print(f"merged rows: {len(merged)} (section-tagged: {section_n})")
 PY
 
 echo "[7/7] split -> $PREF_SPLIT"
-"$PYTHON" "$ROOT/scripts/split_pref_dataset.py" \
+"$PYTHON" "$ROOT/scripts-old/split_pref_dataset.py" \
   --input "$PREF_MERGED" \
   --out-dir "$PREF_SPLIT" \
   --group-by base_id
 
 wc -l "$PREF_MERGED" "$PREF_SPLIT/train.jsonl" "$PREF_SPLIT/valid.jsonl"
-"$PYTHON" "$ROOT/scripts/analyze_section_pairs.py" --input "$SECTION_RAW" --compare "$PREF_HUNK"
+"$PYTHON" "$ROOT/scripts-old/analyze_section_pairs.py" --input "$SECTION_RAW" --compare "$PREF_HUNK"

@@ -12,7 +12,7 @@ run() {
   local safe
   safe=$(echo "$name" | tr '/:' '__')
   echo "======== START $name (max_seq=$maxlen) ========"
-  "$PY" scripts/eval_pref_xproject.py \
+  PYTHONPATH=scripts:scripts-old "$PY" scripts-old/eval_pref_xproject.py \
     --input "$PREF" \
     --model "$model" \
     --truncate-dim "$trunc" \
@@ -28,4 +28,4 @@ run "multilingual-e5-base" "intfloat/multilingual-e5-base" 0 "passage: " 32 512
 run "ruri-v3-70m" "cl-nagoya/ruri-v3-70m" 0 "文章: " 32 512
 run "ruri-v3-130m" "cl-nagoya/ruri-v3-130m" 0 "文章: " 16 512
 
-"$PY" scripts/summarize_embed_compare.py
+"$PY" scripts-old/summarize_embed_compare.py

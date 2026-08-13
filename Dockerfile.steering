@@ -8,8 +8,8 @@ COPY requirements.txt requirements-steering.txt ./
 RUN pip install --no-cache-dir -U pip \
   && pip install --no-cache-dir -r requirements.txt -r requirements-steering.txt
 
-COPY scripts/steering_utils.py scripts/extract_revision_activations.py scripts/
-COPY scripts/dok_steering_extract.sh /app/dok_steering_extract.sh
+COPY scripts/steering_utils.py scripts-old/extract_revision_activations.py scripts/
+COPY scripts-old/dok_steering_extract.sh /app/dok_steering_extract.sh
 RUN chmod +x /app/dok_steering_extract.sh
 
 # 学習ペア（非公開原稿由来。イメージは非公開レジストリにのみ push すること）

@@ -7,8 +7,8 @@ COPY requirements-pref-ce.txt ./
 RUN pip install --no-cache-dir -U pip \
   && pip install --no-cache-dir -r requirements-pref-ce.txt
 
-COPY scripts/train_pref_ce.py scripts/eval_pref_ce_xproject.py scripts/
-COPY scripts/dok_pref_ce.sh /app/dok_pref_ce.sh
+COPY scripts-old/train_pref_ce.py scripts-old/eval_pref_ce_xproject.py scripts/
+COPY scripts-old/dok_pref_ce.sh /app/dok_pref_ce.sh
 RUN chmod +x /app/dok_pref_ce.sh
 
 # 選好データ（非公開原稿由来。非公開レジストリにのみ push）

@@ -41,6 +41,7 @@ from pathlib import Path
 
 root = Path(sys.argv[4])
 sys.path.insert(0, str(root / "scripts"))
+sys.path.insert(0, str(root / "scripts-old"))
 from build_machine_neg_pref import merge_pref
 
 base_path, neg_path, out_path = map(Path, sys.argv[1:4])
@@ -56,7 +57,7 @@ if [[ "${SMOKE:-0}" == 1 ]]; then
 else
   SPLIT_ARGS+=(--force-train-label machine_neg)
 fi
-"$PYTHON" "$ROOT/scripts/split_pref_dataset.py" "${SPLIT_ARGS[@]}"
+"$PYTHON" "$ROOT/scripts-old/split_pref_dataset.py" "${SPLIT_ARGS[@]}"
 
 test -s "$SPLIT_DIR/train.jsonl" || {
   echo "empty train split: $SPLIT_DIR/train.jsonl" >&2

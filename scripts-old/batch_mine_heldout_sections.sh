@@ -36,4 +36,4 @@ for repo in "${REPOS[@]}"; do
 done
 
 wc -l "$OUT"
-"$PYTHON" "$ROOT/scripts/analyze_section_pairs.py" --input "$OUT"
+"$PYTHON" "$ROOT/scripts-old/analyze_section_pairs.py" --input "$OUT"

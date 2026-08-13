@@ -16,6 +16,7 @@ if [[ $# -eq 0 ]]; then
   exit 1
 fi
 
-exec "${PYTHON}" "${JA_TECH_EDIT_SCORE_HOME}/scripts/compare_pref_candidates_static.py" \
+export PYTHONPATH="${JA_TECH_EDIT_SCORE_HOME}/scripts${PYTHONPATH:+:${PYTHONPATH}}"
+exec "${PYTHON}" "${JA_TECH_EDIT_SCORE_HOME}/scripts-old/compare_pref_candidates_static.py" \
   --model "${MODEL}" \
   "$@"

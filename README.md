@@ -1,5 +1,7 @@
 # ja-tech-edit-score
 
+現行の工程は [docs/PLAN.md](docs/PLAN.md)。入口は `make help`。使うスクリプトは `scripts/`、探索用の旧スクリプトは `scripts-old/`。
+
 日本語技術文書の **選好評価モデル**
 
 - Git のブランチ間で、原稿と編集済みの内容との差分を学習する
@@ -23,8 +25,7 @@
 
 ## セットアップ
 
-リポジトリには学習済みモデル（`outputs/pref-static/`）が同梱されている。
-`make train` はモデルを更新するときだけ実行すればよい。
+リポジトリには学習済みモデル（`outputs/pref-static/`）が同梱されている。公開 CLI（check / compare）の既定である。評価器の学び直しは `make train-sentseq-keep-pairsplit` / `make train-bt-keep-pairsplit`。
 
 ```bash
 cd ~/dev/ja-tech-edit-score
@@ -60,18 +61,14 @@ make data \
 
 ## 選好評価モデルの再学習
 
-学習データを追加したあと、同梱モデルを更新する。
+現行は、レビュー済みの推敲前後ペアから作った分割で、文列型と Bradley-Terry 型を学び直す（`docs/PLAN.md` 工程 3）。
 
 ```bash
-make train
+make train-sentseq-keep-pairsplit
+make train-bt-keep-pairsplit
 ```
 
-出力先: `outputs/pref-static/`（`model.joblib`, `metrics.json`）
-
-環境変数:
-
-- **`EMBED_MODEL`**：既定 `hotchpotch/static-embedding-japanese`
-- **`TRUNCATE_DIM`**：既定 `256`
+旧い線形分類器（`outputs/pref-static/`、かつての `make train`）の学習スクリプトは `scripts-old/` にある。公開 CLI の `ja-tech-edit-score-compare` は、いまもその同梱モデルを読む。
 
 ## 2候補の比較
 
@@ -112,13 +109,7 @@ make daemon-stop  # 停止
 
 ## データパイプライン
 
-```
-make data
-  git diff ORG..EDT → examples.raw.jsonl（追記）
-
-make train
-  import → DPO → curate → pref dataset → split → train_pref_static
-```
+採掘は `make data` / `make mine-sections`。選好データの現行はレビュー済み keep から `make pairsplit-data` / `make pref-keep-data`。旧い `pref_dataset` パイプラインは `scripts-old/`。
 
 ## 選好評価モデルの内部構成
 
