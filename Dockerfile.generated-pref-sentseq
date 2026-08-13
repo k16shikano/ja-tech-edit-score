@@ -1,0 +1,36 @@
+# 高火力 DOK 向け: 生成文人手選好の section sentseq（PLAN 工程 8c）
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements-pref-sentseq.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements-pref-sentseq.txt \
+  && pip install --no-cache-dir joblib scikit-learn
+
+COPY scripts/train_pref_sentseq.py scripts/train_generated_pref_sentseq.py scripts/
+COPY scripts/generated_pref_utils.py scripts/sentseq_utils.py scripts/pref_static_utils.py scripts/
+COPY scripts/dok_generated_pref_sentseq.sh /app/dok_generated_pref_sentseq.sh
+RUN chmod +x /app/dok_generated_pref_sentseq.sh
+
+COPY data/generated_pref_experiment/folds_section/fold_0/train.jsonl data/generated_pref_experiment/folds_section/fold_0/train.jsonl
+COPY data/generated_pref_experiment/folds_section/fold_0/valid.jsonl data/generated_pref_experiment/folds_section/fold_0/valid.jsonl
+COPY data/generated_pref_experiment/folds_section/fold_1/train.jsonl data/generated_pref_experiment/folds_section/fold_1/train.jsonl
+COPY data/generated_pref_experiment/folds_section/fold_1/valid.jsonl data/generated_pref_experiment/folds_section/fold_1/valid.jsonl
+COPY data/generated_pref_experiment/folds_section/fold_2/train.jsonl data/generated_pref_experiment/folds_section/fold_2/train.jsonl
+COPY data/generated_pref_experiment/folds_section/fold_2/valid.jsonl data/generated_pref_experiment/folds_section/fold_2/valid.jsonl
+COPY data/generated_pref_experiment/folds_section/fold_3/train.jsonl data/generated_pref_experiment/folds_section/fold_3/train.jsonl
+COPY data/generated_pref_experiment/folds_section/fold_3/valid.jsonl data/generated_pref_experiment/folds_section/fold_3/valid.jsonl
+COPY data/generated_pref_experiment/folds_section/fold_4/train.jsonl data/generated_pref_experiment/folds_section/fold_4/train.jsonl
+COPY data/generated_pref_experiment/folds_section/fold_4/valid.jsonl data/generated_pref_experiment/folds_section/fold_4/valid.jsonl
+COPY data/pref_keep_split_section/train.jsonl data/pref_keep_split_section/train.jsonl
+
+ENV PYTHONUNBUFFERED=1
+ENV DEVICE=cuda
+ENV EMBED_MODEL=cl-nagoya/ruri-v3-30m
+ENV FOLDS="0 1 2 3 4"
+ENV LENGTH_FEATURES=0
+ENV EPOCHS=20
+ENV ANCHOR_BATCH_FRACTION=0.25
+
+ENTRYPOINT ["/bin/bash", "/app/dok_generated_pref_sentseq.sh"]

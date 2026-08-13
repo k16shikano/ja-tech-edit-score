@@ -13,6 +13,9 @@ data/*
 !data/pref_keep/
 !data/pref_keep/build_report_hunk.json
 !data/pref_keep/build_report_section.json
+!data/generated_pref_experiment/
+!data/generated_pref_experiment/folds_section/
+!data/generated_pref_experiment/folds_section/**
 docs
 *.md
 !docs/FLY-SERVE.md
@@ -43,4 +46,7 @@ scripts/*
 !scripts/sentseq_utils.py
 !scripts/train_pref_bt.py
 !scripts/train_pref_sentseq.py
+!scripts/train_generated_pref_sentseq.py
+!scripts/generated_pref_utils.py
 !scripts/dok_pref_keep.sh
+!scripts/dok_generated_pref_sentseq.sh
