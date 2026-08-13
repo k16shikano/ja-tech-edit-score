@@ -9,7 +9,7 @@
 
 分割は keep 側の meta.split を維持する。
   train   → 学習
-  heldout → 検証（LoRA 評価に使う書籍を学習に混ぜない）
+  heldout → 検証（ペア単位層化分割後の heldout を含む）
 
 旧 pref_dataset / pref_split は上書きしない。
 """
@@ -207,8 +207,8 @@ def main() -> None:
     "valid_projects": dict(project_counts["valid"]),
     "skipped": dict(skipped),
     "note": (
-      "valid は keep の heldout（書籍単位）。"
-      "LoRA 評価と同じ書籍を選好学習の train に入れない。"
+      "valid は keep の heldout（meta.split）。"
+      "ペア単位層化分割後は書籍単位ではない。"
     ),
   }
   report_path = Path(args.report)
