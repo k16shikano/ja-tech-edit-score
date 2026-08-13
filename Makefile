@@ -11,6 +11,7 @@ DATA_DIR := $(ROOT)data
 OUTPUT_DIR := $(ROOT)outputs/pref-static
 BT_OUTPUT_DIR := $(ROOT)outputs/pref-bt
 BT_KEEP_OUTPUT_DIR := $(ROOT)outputs/pref-bt-keep
+BT_KEEP_PAIRSPLIT_DIR := $(ROOT)outputs/pref-bt-keep-pairsplit
 RAW := $(DATA_DIR)/examples.raw.jsonl
 DB := $(DATA_DIR)/examples.db
 DPO := $(DATA_DIR)/dpo_dataset.jsonl
@@ -22,6 +23,7 @@ PREF_KEEP_SPLIT := $(DATA_DIR)/pref_keep_split
 PREF_KEEP_SPLIT_HUNK := $(DATA_DIR)/pref_keep_split_hunk
 PREF_KEEP_SPLIT_SECTION := $(DATA_DIR)/pref_keep_split_section
 SENTSEQ_KEEP_OUTPUT_DIR := $(ROOT)outputs/pref-sentseq-keep
+SENTSEQ_KEEP_PAIRSPLIT_DIR := $(ROOT)outputs/pref-sentseq-keep-pairsplit
 
 EMBED_MODEL ?= cl-nagoya/ruri-v3-30m
 TRUNCATE_DIM ?= 0
@@ -62,7 +64,7 @@ TRANSITION_OUTPUT_DIR := $(ROOT)outputs/paragraph-transition
 STRUCTURE_PROFILE := $(DATA_DIR)/section_edit_profile.jsonl
 STRUCTURE_EVAL_DIR := $(ROOT)outputs/structure_eval
 
-.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-bt-keep train-ce train-sentseq train-sentseq-keep pref-keep-data eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image build-pref-keep-image build-serve-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer calibrate-margins revise serve
+.PHONY: help venv data mine-sections mine-heldout-sections section-pref-data composition-neg-pref train train-bt train-bt-keep train-bt-keep-pairsplit train-ce train-sentseq train-sentseq-keep train-sentseq-keep-pairsplit pref-keep-data eval-xproject eval-bt-xproject eval-ce-xproject eval-sentseq-xproject compare score-bt rank converge check clean-model install-bin install-skills daemon daemon-stop steering-pairs steering-extract steering-probe edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk edit-sft-score hard-eval-label hard-eval-score hard-eval-v2-build build-pref-ce-image build-pref-sentseq-image build-pref-keep-image build-generated-pref-sentseq-image build-serve-image transition-data train-transition eval-transition structure-eval-data structure-eval-score machine-revisions machine-neg-pref train-bt-machine-neg eval-machine-neg v2c-composer-gen eval-v2c-composer calibrate-margins revise serve pairsplit-data select-blind-items build-blind-pairs blind-judge analyze-blind-judgments generated-pref-data generated-pref-sentseq-smoke generated-pref-sentseq-cv section-middle-gen section-middle-judge section-middle-triples test
 
 help:
 	@echo "Targets:"
@@ -76,9 +78,24 @@ help:
 	@echo "  make build-pref-ce-image  # CE 再学習用 Docker イメージをローカル build"
 	@echo "  make build-pref-sentseq-image  # 文列 Transformer 用 Docker イメージをローカル build"
 	@echo "  make train         # pref-static（既定: ruri-v3-30m）"
+	@echo "  make pairsplit-data  # ペア単位層化分割で SFT/pref を作り直し（PLAN 工程1）"
+	@echo "  make select-blind-items  # ブラインド判定 60 件を選定"
+	@echo "  make build-blind-pairs  # 判定ペア一覧（生成が揃えば 6 種）"
+	@echo "  make blind-judge [PORT=8320]  # ブラインド判定 Web（ローカル）"
+	@echo "  make analyze-blind-judgments  # 工程7: 判定集計 → docs/RESULTS.md"
+	@echo "  make section-middle-gen [MODEL=composer-2.5] [LIMIT=0]  # 節ペア下書きから Composer 推敲（CURSOR_API_KEY）"
+	@echo "  make section-middle-judge [PORT=8321]  # 生成が下書きより劣化していないかの Web"
+	@echo "  make section-middle-triples  # 劣化していない件から三つ組み選好 JSONL"
+	@echo "  make generated-pref-data  # 工程8a: 360件の開発用選好教師 + 5-fold"
+	@echo "  make generated-pref-sentseq-smoke  # 工程8c: CPU スモーク（1 epoch）。本学習は DOK"
+	@echo "  make build-generated-pref-sentseq-image  # 工程8c: DOK 用イメージを build/push"
+	@echo "  make generated-pref-sentseq-cv [FOLD=0]  # 手元 GPU デバッグ用。本学習は DOK"
+	@echo "  make test  # pytest（generated-pref 含む）"
 	@echo "  make pref-keep-data # keep → hunk 分割 + 節分割（混ぜない）"
 	@echo "  make train-bt-keep # hunk 分割で BT → outputs/pref-bt-keep"
+	@echo "  make train-bt-keep-pairsplit # ペア単位分割で BT → outputs/pref-bt-keep-pairsplit"
 	@echo "  make train-sentseq-keep # 節分割で文列 → outputs/pref-sentseq-keep"
+	@echo "  make train-sentseq-keep-pairsplit # ペア単位分割で文列 → outputs/pref-sentseq-keep-pairsplit"
 	@echo "  make build-pref-keep-image # DOK 用: BT=hunk / sentseq=section"
 	@echo "  make eval-ce-xproject [ONLY_PROJECTS=a,b] # LOPO（cross-encoder、GPU）"
 	@echo "  make eval-sentseq-xproject [ONLY_PROJECTS=a,b] # LOPO（文列 Transformer、GPU）"
@@ -194,6 +211,9 @@ build-pref-sentseq-image:
 build-pref-keep-image:
 	bash scripts/build_push_pref_keep_image.sh
 
+build-generated-pref-sentseq-image:
+	bash scripts/build_push_generated_pref_sentseq_image.sh
+
 build-serve-image:
 	docker build -f Dockerfile.serve -t ja-tech-edit-score:serve .
 
@@ -263,6 +283,20 @@ train-bt-keep: pref-keep-data
 	  --batch-size $(BATCH_SIZE) \
 	  --device "$(or $(DEVICE),cuda)"
 
+# PLAN 工程3: ペア単位分割の学習側で BT を学び直す（旧 pref-bt-keep は上書きしない）
+train-bt-keep-pairsplit:
+	@test -s "$(PREF_KEEP_SPLIT_HUNK)/train.jsonl" || (echo "run make pairsplit-data first" && exit 1)
+	$(PYTHON) scripts/train_pref_bt.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(PREF_KEEP_SPLIT_HUNK)/train.jsonl" \
+	  --eval-file "$(PREF_KEEP_SPLIT_HUNK)/valid.jsonl" \
+	  --output-dir "$(BT_KEEP_PAIRSPLIT_DIR)" \
+	  --truncate-dim $(TRUNCATE_DIM) \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(MAX_SEQ_LENGTH) \
+	  --batch-size $(BATCH_SIZE) \
+	  --device "$(or $(DEVICE),cuda)"
+
 train-sentseq-keep: pref-keep-data
 	@test -s "$(PREF_KEEP_SPLIT_SECTION)/train.jsonl" || (echo "missing $(PREF_KEEP_SPLIT_SECTION)/train.jsonl" && exit 1)
 	$(PYTHON) scripts/train_pref_sentseq.py \
@@ -270,6 +304,23 @@ train-sentseq-keep: pref-keep-data
 	  --train-file "$(PREF_KEEP_SPLIT_SECTION)/train.jsonl" \
 	  --eval-file "$(PREF_KEEP_SPLIT_SECTION)/valid.jsonl" \
 	  --output-dir "$(SENTSEQ_KEEP_OUTPUT_DIR)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --epochs $(or $(SENTSEQ_KEEP_EPOCHS),40) \
+	  --batch-size $(SENTSEQ_BATCH_SIZE) \
+	  --device "$(or $(DEVICE),cuda)" \
+	  --lr "$(or $(SENTSEQ_KEEP_LR),3e-4)" \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),)
+
+train-sentseq-keep-pairsplit:
+	@test -s "$(PREF_KEEP_SPLIT_SECTION)/train.jsonl" || (echo "run make pairsplit-data first" && exit 1)
+	$(PYTHON) scripts/train_pref_sentseq.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(PREF_KEEP_SPLIT_SECTION)/train.jsonl" \
+	  --eval-file "$(PREF_KEEP_SPLIT_SECTION)/valid.jsonl" \
+	  --output-dir "$(SENTSEQ_KEEP_PAIRSPLIT_DIR)" \
 	  --text-prefix "$(TEXT_PREFIX)" \
 	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
 	  --epochs $(or $(SENTSEQ_KEEP_EPOCHS),40) \
@@ -482,6 +533,124 @@ edit-sft-review-section-extra:
 	  --train "$(DATA_DIR)/edit_sft_section_extra_review/train.jsonl" \
 	  --heldout "$(DATA_DIR)/edit_sft_section_extra_review/heldout.jsonl" \
 	  --state "$(DATA_DIR)/edit_sft_section_extra_review/review_state.json"
+
+# ペア単位の層化乱択で学習/検証を作り直し、pref-keep も同じ分割で再生成する。
+pairsplit-data:
+	$(PYTHON) scripts/rebuild_pairsplit_data.py \
+	  --canonical "$(DATA_DIR)/revision_corpus/canonical.jsonl" \
+	  --pairsplit-dir "$(DATA_DIR)/pairsplit" \
+	  --heldout-n $(or $(HELDOUT_N),260) \
+	  --seed $(or $(SEED),42) \
+	  --also-pref
+
+select-blind-items:
+	$(PYTHON) scripts/select_blind_items.py \
+	  --heldout "$(DATA_DIR)/edit_sft_all/heldout.jsonl" \
+	  --out "$(DATA_DIR)/blind_eval/items.jsonl" \
+	  --n $(or $(N),60) \
+	  --min-chars $(or $(MIN_CHARS),100) \
+	  --seed $(or $(SEED),42)
+
+build-blind-pairs:
+	$(PYTHON) scripts/build_blind_pairs.py \
+	  --items "$(DATA_DIR)/blind_eval/items.jsonl" \
+	  --out "$(DATA_DIR)/blind_eval/pairs.jsonl" \
+	  --seed $(or $(SEED),42) \
+	  --primary-model "$(or $(PRIMARY_MODEL),$(SENTSEQ_BEST_DIR))"
+
+blind-judge:
+	$(PYTHON) scripts/blind_judge_server.py \
+	  --pairs "$(DATA_DIR)/blind_eval/pairs.jsonl" \
+	  --judgments "$(DATA_DIR)/blind_eval/judgments.jsonl" \
+	  --host $(or $(HOST),0.0.0.0) \
+	  --port $(or $(PORT),8320)
+
+GENERATED_PREF_DATA_DIR := $(DATA_DIR)/generated_pref_experiment
+GENERATED_PREF_OUTPUT_DIR := $(ROOT)outputs/generated-pref-sentseq
+GENERATED_PREF_FOLD ?= 0
+# help では FOLD= を案内。未指定時は GENERATED_PREF_FOLD にフォールバック。
+PREF_CV_FOLD = $(or $(FOLD),$(GENERATED_PREF_FOLD))
+
+analyze-blind-judgments:
+	$(PYTHON) scripts/analyze_blind_judgments.py \
+	  --pairs "$(DATA_DIR)/blind_eval/pairs.jsonl" \
+	  --judgments "$(DATA_DIR)/blind_eval/judgments.jsonl" \
+	  --items "$(DATA_DIR)/blind_eval/items.jsonl" \
+	  --adapter-greedy "$(or $(ADAPTER_GREEDY),outputs/edit-sft-eval-v3/adapter_greedy.jsonl)" \
+	  --sentseq-model "$(SENTSEQ_KEEP_PAIRSPLIT_DIR)" \
+	  --bt-model "$(BT_KEEP_PAIRSPLIT_DIR)" \
+	  --analysis-json "$(DATA_DIR)/blind_eval/analysis.json" \
+	  --results-md docs/RESULTS.md
+
+generated-pref-data:
+	@test -s "$(DATA_DIR)/blind_eval/pairs.jsonl" || (echo "missing blind pairs" && exit 1)
+	@test -s "$(DATA_DIR)/blind_eval/judgments.jsonl" || (echo "missing blind judgments" && exit 1)
+	@test -s "$(DATA_DIR)/blind_eval/items.jsonl" || (echo "missing blind items" && exit 1)
+	$(PYTHON) scripts/build_generated_pref_data.py \
+	  --pairs "$(DATA_DIR)/blind_eval/pairs.jsonl" \
+	  --judgments "$(DATA_DIR)/blind_eval/judgments.jsonl" \
+	  --items "$(DATA_DIR)/blind_eval/items.jsonl" \
+	  --out-dir "$(GENERATED_PREF_DATA_DIR)" \
+	  --seed $(or $(SEED),42)
+
+generated-pref-sentseq-smoke: generated-pref-data
+	@test -s "$(GENERATED_PREF_DATA_DIR)/folds_section/fold_0/train.jsonl" || (echo "run make generated-pref-data first" && exit 1)
+	$(PYTHON) scripts/train_generated_pref_sentseq.py \
+	  --train-file "$(GENERATED_PREF_DATA_DIR)/folds_section/fold_0/train.jsonl" \
+	  --valid-file "$(GENERATED_PREF_DATA_DIR)/folds_section/fold_0/valid.jsonl" \
+	  --output-dir "$(GENERATED_PREF_OUTPUT_DIR)-smoke" \
+	  --anchor-file "$(PREF_KEEP_SPLIT_SECTION)/train.jsonl" \
+	  --anchor-batch-fraction 0.25 \
+	  --limit-train 16 \
+	  --limit-valid 8 \
+	  --epochs 1 \
+	  --batch-size 8 \
+	  --encode-batch-size 8 \
+	  --device cpu
+
+generated-pref-sentseq-cv: generated-pref-data
+	@test -s "$(GENERATED_PREF_DATA_DIR)/folds_section/fold_$(PREF_CV_FOLD)/train.jsonl" \
+	  || (echo "missing fold $(PREF_CV_FOLD); run make generated-pref-data" && exit 1)
+	$(PYTHON) scripts/train_generated_pref_sentseq.py \
+	  --train-file "$(GENERATED_PREF_DATA_DIR)/folds_section/fold_$(PREF_CV_FOLD)/train.jsonl" \
+	  --valid-file "$(GENERATED_PREF_DATA_DIR)/folds_section/fold_$(PREF_CV_FOLD)/valid.jsonl" \
+	  --output-dir "$(GENERATED_PREF_OUTPUT_DIR)-fold$(PREF_CV_FOLD)$(if $(filter 1,$(LENGTH_FEATURES)),-lenon,)" \
+	  --anchor-file "$(PREF_KEEP_SPLIT_SECTION)/train.jsonl" \
+	  --anchor-batch-fraction $(or $(ANCHOR_BATCH_FRACTION),0.25) \
+	  $(if $(filter 1,$(LENGTH_FEATURES)),--length-features,) \
+	  --epochs $(or $(EPOCHS),20) \
+	  --batch-size $(or $(BATCH_SIZE),64) \
+	  --device $(or $(DEVICE),cuda)
+
+SECTION_MIDDLE_DIR := $(DATA_DIR)/section_middle
+
+section-middle-gen:
+	$(PYTHON) scripts/generate_section_composer_revisions.py \
+	  --input "$(DATA_DIR)/revision_corpus/keep_section.jsonl" \
+	  --out "$(SECTION_MIDDLE_DIR)/revisions.jsonl" \
+	  --model "$(or $(MODEL),composer-2.5)" \
+	  --limit $(or $(LIMIT),0) \
+	  --offset $(or $(OFFSET),0)
+
+section-middle-judge:
+	$(PYTHON) scripts/middle_degrade_server.py \
+	  --items "$(DATA_DIR)/revision_corpus/keep_section.jsonl" \
+	  --revisions "$(SECTION_MIDDLE_DIR)/revisions.jsonl" \
+	  --judgments "$(SECTION_MIDDLE_DIR)/judgments.jsonl" \
+	  --host $(or $(HOST),0.0.0.0) \
+	  --port $(or $(PORT),8321)
+
+section-middle-triples:
+	@test -s "$(SECTION_MIDDLE_DIR)/revisions.jsonl" || (echo "missing revisions: run make section-middle-gen" && exit 1)
+	@test -s "$(SECTION_MIDDLE_DIR)/judgments.jsonl" || (echo "missing judgments: run make section-middle-judge" && exit 1)
+	$(PYTHON) scripts/build_section_triples.py \
+	  --items "$(DATA_DIR)/revision_corpus/keep_section.jsonl" \
+	  --revisions "$(SECTION_MIDDLE_DIR)/revisions.jsonl" \
+	  --judgments "$(SECTION_MIDDLE_DIR)/judgments.jsonl" \
+	  --out-dir "$(SECTION_MIDDLE_DIR)"
+
+test:
+	$(PYTHON) -m pytest tests/ -q
 
 # レビュー keep を学習用に書き出す。
 # 空行あり → data/edit_sft_section
