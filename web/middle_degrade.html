@@ -191,8 +191,41 @@
     const commentEl = document.getElementById("comment");
     const judgeView = document.getElementById("judge-view");
     const doneMsg = document.getElementById("done-msg");
+    const syncPanels = [draftEl, genEl];
+    let scrollSyncLock = false;
+
+    function getScrollRatio(el) {
+      const max = el.scrollHeight - el.clientHeight;
+      return max > 0 ? el.scrollTop / max : 0;
+    }
+
+    function setScrollRatio(el, ratio) {
+      const max = el.scrollHeight - el.clientHeight;
+      el.scrollTop = max > 0 ? ratio * max : 0;
+    }
+
+    function syncScrollFrom(source) {
+      if (scrollSyncLock) return;
+      scrollSyncLock = true;
+      const ratio = getScrollRatio(source);
+      for (const target of syncPanels) {
+        if (target !== source) setScrollRatio(target, ratio);
+      }
+      requestAnimationFrame(() => {
+        scrollSyncLock = false;
+      });
+    }
+
+    function resetCompareScroll() {
+      scrollSyncLock = true;
+      for (const el of syncPanels) el.scrollTop = 0;
+      requestAnimationFrame(() => {
+        scrollSyncLock = false;
+      });
+    }
 
     function showGen() {
+      const ratio = getScrollRatio(draftEl);
       if (viewMode === "full") {
         genEl.classList.remove("diff-view");
         genEl.textContent = currentGen;
@@ -200,6 +233,7 @@
         genEl.classList.add("diff-view");
         genEl.innerHTML = currentDiff;
       }
+      setScrollRatio(genEl, ratio);
     }
 
     document.querySelectorAll(".view-toggle button").forEach((btn) => {
@@ -238,6 +272,7 @@
       draftEl.textContent = data.source_text || "";
       commentEl.value = "";
       showGen();
+      resetCompareScroll();
     }
 
     async function submit(choice) {
@@ -261,6 +296,9 @@
 
     document.getElementById("btn-ok").addEventListener("click", () => submit("ok"));
     document.getElementById("btn-degraded").addEventListener("click", () => submit("degraded"));
+    for (const el of syncPanels) {
+      el.addEventListener("scroll", () => syncScrollFrom(el), { passive: true });
+    }
     loadNext().catch((err) => {
       errEl.textContent = String(err);
     });
