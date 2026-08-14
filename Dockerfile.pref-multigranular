@@ -1,0 +1,38 @@
+# 高火力 DOK 向け: 段階 1 から 7 の評価器を同じタスクで学ぶ
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements-pref-sentseq.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements-pref-sentseq.txt \
+  && pip install --no-cache-dir joblib scikit-learn
+
+COPY scripts/train_pref_sentseq.py scripts/train_pref_setwise.py scripts/
+COPY scripts/train_pref_multigranular.py scripts/run_pref_multigranular_stages.py scripts/
+COPY scripts/eval_pref_multigranular.py scripts/pref_multigranular_runtime.py scripts/
+COPY scripts/pref_pair_utils.py scripts/setwise_model.py scripts/setwise_triple_utils.py scripts/
+COPY scripts/sentseq_utils.py scripts/pref_static_utils.py scripts/
+COPY scripts/pref_scorer.py scripts/pref_bt_runtime.py scripts/train_pref_bt.py scripts/
+COPY scripts/pref_sentseq_runtime.py scripts/pref_setwise_runtime.py scripts/
+COPY scripts/dok_pref_multigranular.sh /app/dok_pref_multigranular.sh
+RUN chmod +x /app/dok_pref_multigranular.sh
+
+COPY data/section_middle/pref_train.jsonl data/section_middle/pref_train.jsonl
+COPY data/section_middle/pref_valid.jsonl data/section_middle/pref_valid.jsonl
+COPY data/pref_keep_split_hunk/train.jsonl data/pref_keep_split_hunk/train.jsonl
+COPY data/pref_keep_split_section/train.jsonl data/pref_keep_split_section/train.jsonl
+COPY data/pref_keep_split_section/valid.jsonl data/pref_keep_split_section/valid.jsonl
+COPY outputs/pref-bt-keep/ outputs/pref-bt-keep/
+
+ENV PYTHONUNBUFFERED=1
+ENV DEVICE=cuda
+ENV EMBED_MODEL=cl-nagoya/ruri-v3-30m
+ENV EPOCHS=40
+ENV PHASE1_EPOCHS=10
+ENV PHASE2_EPOCHS=40
+ENV LR=3e-4
+ENV STAGES=1,2,3,4,5,6,7
+ENV SEEDS=0,1,2
+
+ENTRYPOINT ["/bin/bash", "/app/dok_pref_multigranular.sh"]
