@@ -47,12 +47,12 @@ make hard-eval-label
 | ペア一致率 | 0.830 | **0.837** |
 
 レポート: `outputs/hard_eval_report_{bt,ce}.{json,md}`。
-判定と読み（CE 採用）は [docs/ROADMAP.md](../../docs/ROADMAP.md) の段階 2b。
+判定と読み（CE 採用）は [docs-old/ROADMAP.md](../../docs-old/ROADMAP.md) の段階 2b。
 
 ## v2（節単位・構成軸）
 
 held-out 実編集（`Nmonthly` の学習未使用 5 リポジトリ）から24項目を生成済み。
-設計は [docs/HARD-EVAL.md](../../docs/HARD-EVAL.md) の「v2」節。
+設計は [docs-old/HARD-EVAL.md](../../docs-old/HARD-EVAL.md) の「v2」節。
 
 | ファイル | 内容 |
 |----------|------|

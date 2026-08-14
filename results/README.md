@@ -2,7 +2,7 @@
 
 公開してよい集計成果物（候補本文・埋め込み・活性値は含まない）。
 
-生成手順と解釈は `docs/ADDITIONAL-ANALYSIS-2026-07-28.md` を参照。
+生成手順と解釈は `docs-old/ADDITIONAL-ANALYSIS-2026-07-28.md` を参照。
 
 再生成例:
 

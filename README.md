@@ -5,7 +5,7 @@
 日本語技術文書の **選好評価モデル**
 
 - Git のブランチ間で、原稿と編集済みの内容との差分を学習する
-- 編集中の内容について、学習したモデルに照らしたスコア（いわば編集の品質）を計測する。[docs/WORKFLOW.md](docs/WORKFLOW.md) を参照
+- 編集中の内容について、学習したモデルに照らしたスコア（いわば編集の品質）を計測する
 
 ## 想定している使い方
 
@@ -126,8 +126,9 @@ make daemon-stop  # 停止
 
 | ファイル | 内容 |
 |----------|------|
-| [docs/WORKFLOW.md](docs/WORKFLOW.md) | 章推敲の手順 |
-| [docs/SFT-DPO.md](docs/SFT-DPO.md) | 生成モデル向け SFT / DPO 構想メモ（未実装） |
+| [docs/PLAN.md](docs/PLAN.md) | 現行の実験計画 |
+| [docs-old/WORKFLOW.md](docs-old/WORKFLOW.md) | 章推敲の手順（旧） |
+| [docs-old/SFT-DPO.md](docs-old/SFT-DPO.md) | 生成モデル向け SFT / DPO 構想メモ（旧） |
 | [data/README.md](data/README.md) | 学習データディレクトリの説明 |
 | [outputs/README.md](outputs/README.md) | 同梱モデルの説明 |
 | [skills/README.md](skills/README.md) | Cursor Skill のインストール |
