@@ -505,6 +505,13 @@ def render_markdown(analysis: dict) -> str:
       f"- 判定対象節数：{analysis['inputs']['n_items']}（各節 6 比較、計 {analysis['inputs']['n_pairs']} 判定）",
       f"- 生成物の出所：`outputs/edit-sft-eval-v3/`（工程 C の本生成）",
       f"- 評価器：`outputs/pref-sentseq-keep-pairsplit`（文列型）、`outputs/pref-bt-keep-pairsplit`（Bradley-Terry 型）",
+      *(
+        [
+          "- 工程 8-mid の文列型：`outputs/pref-sentseq-section-triples`（同じ 360 件を採点し直したもの。§5.5）",
+        ]
+        if analysis["scorers"].get("sentseq_section_triples") is not None
+        else []
+      ),
       "",
       "再生成：`make analyze-blind-judgments`",
       "",
@@ -738,6 +745,50 @@ def render_markdown(analysis: dict) -> str:
     )
     lines.append("")
 
+  extra = analysis["scorers"].get("sentseq_section_triples")
+  if extra is not None:
+    lines.append("### 5.5 文列型（`pref-sentseq-section-triples`）")
+    lines.append("")
+    lines.append(
+      "工程 8-mid の三つ組みで学び直した文列型で、同じ 360 件を採点し直した結果である。"
+    )
+    lines.append(
+      "判定 60 件のうち節 50 件は、この文列型の valid（最良 epoch の選定）に入っている。"
+      "比較 6（人間の推敲対下書き）は、その valid の対と同じ文である。"
+      "比較 2・3・5 の候補は教師に無い生成文である。"
+    )
+    lines.append(
+      "比較 4・5 の「選抜1本」は、当時の文列型が選んだ文のままである。"
+      "選抜をやり直した結果ではない。"
+    )
+    lines.append("")
+    sp = extra["score_length_spearman"]
+    lines.append(
+      f"- スコアと文字数の Spearman：{sp:.3f}" if sp is not None else "- スコアと文字数の Spearman：—"
+    )
+    lines.append("")
+    lines.append(
+      "| 比較 | 全件 | 人手同等 | 比較可能 | 評価器一致 | 欠陥報告あり |"
+    )
+    lines.append("|---|---:|---:|---:|---:|---:|")
+    for ctype, st in extra["by_compare_type"].items():
+      short = COMPARE_LABELS.get(ctype, ctype)
+      tie = st["human_tie"]
+      comp = st["comparable"]
+      br = st["broken_reported"]
+      lines.append(
+        f"| {short} | {st['n_total']} | {tie['k']} | {comp['n']} | "
+        f"{comp['k']}/{comp['n']} ({comp['rate']:.3f}) | {br['k']} |"
+      )
+    nd = len(extra["disagreements"])
+    comp_all = sum(st["comparable"]["n"] for st in extra["by_compare_type"].values())
+    lines.append("")
+    lines.append(
+      f"**不一致**：比較可能 {comp_all} 件のうち **{nd} 件**"
+      f"（`analysis.json` → `scorers.sentseq_section_triples.disagreements`）。"
+    )
+    lines.append("")
+
   lines.extend(["## 6. 入力ファイル", ""])
   path_labels = {
     "pairs": "ペア定義",
@@ -746,6 +797,7 @@ def render_markdown(analysis: dict) -> str:
     "adapter_greedy": "推敲モデル・貪欲生成 jsonl",
     "sentseq_model": "文列型評価器",
     "bt_model": "BT 型評価器",
+    "sentseq_section_triples_model": "工程 8-mid の文列型",
     "n_pairs": "判定件数",
     "n_items": "判定対象節数",
   }
@@ -772,6 +824,11 @@ def main() -> None:
   parser.add_argument(
     "--bt-model",
     default="outputs/pref-bt-keep-pairsplit",
+  )
+  parser.add_argument(
+    "--extra-sentseq-model",
+    default="",
+    help="追加の文列型。同じ 360 件を採点し、RESULTS の §5.5 に書く",
   )
   parser.add_argument("--analysis-json", default="data/blind_eval/analysis.json")
   parser.add_argument("--results-md", default="docs/RESULTS.md")
@@ -810,6 +867,7 @@ def main() -> None:
       "adapter_greedy": args.adapter_greedy,
       "sentseq_model": args.sentseq_model,
       "bt_model": args.bt_model,
+      "sentseq_section_triples_model": args.extra_sentseq_model or None,
       "n_pairs": len(merged),
       "n_items": len(items),
     },
@@ -831,6 +889,12 @@ def main() -> None:
   print("scoring with bt...", flush=True)
   bt = score_all_pairs(merged, Path(args.bt_model))
   analysis["scorers"]["bt"] = agreement_stats(merged, bt)
+
+  extra_path = str(args.extra_sentseq_model or "").strip()
+  if extra_path:
+    print(f"scoring extra sentseq ({extra_path})...", flush=True)
+    extra = score_all_pairs(merged, Path(extra_path))
+    analysis["scorers"]["sentseq_section_triples"] = agreement_stats(merged, extra)
 
   analysis_path = Path(args.analysis_json)
   analysis_path.parent.mkdir(parents=True, exist_ok=True)

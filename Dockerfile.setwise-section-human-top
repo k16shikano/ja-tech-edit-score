@@ -1,0 +1,27 @@
+# 高火力 DOK 向け: 節三つ組みで setwise 文列型を human-top 損失で学ぶ
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements-pref-sentseq.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements-pref-sentseq.txt \
+  && pip install --no-cache-dir joblib scikit-learn
+
+COPY scripts/train_pref_setwise.py scripts/
+COPY scripts/setwise_model.py scripts/setwise_triple_utils.py scripts/
+COPY scripts/sentseq_utils.py scripts/pref_static_utils.py scripts/
+COPY scripts/train_pref_sentseq.py scripts/
+COPY scripts/dok_setwise_section_human_top.sh /app/dok_setwise_section_human_top.sh
+RUN chmod +x /app/dok_setwise_section_human_top.sh
+
+COPY data/section_middle/pref_train.jsonl data/section_middle/pref_train.jsonl
+COPY data/section_middle/pref_valid.jsonl data/section_middle/pref_valid.jsonl
+
+ENV PYTHONUNBUFFERED=1
+ENV DEVICE=cuda
+ENV EMBED_MODEL=cl-nagoya/ruri-v3-30m
+ENV EPOCHS=40
+ENV LR=3e-4
+
+ENTRYPOINT ["/bin/bash", "/app/dok_setwise_section_human_top.sh"]
