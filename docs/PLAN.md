@@ -4,6 +4,14 @@
 旧ドキュメントは `docs-old/` に移した。過去の経緯の参照用であり、以後の手順には使わない。
 DOK（工程 3・4）の起動コマンドは手元の `docs/DOK-PLAN.md`（gitignore。公開リポジトリには載せない）。
 
+**いまは、段階 1 から 7 の評価器を同じ DOK タスクで学ぶ実装に入った。検証 50 件で人間の推敲を最上に置けるかを見る。独立した人手判定（8d）は、その学習のあとに行う。下書き 40 件と候補の作り方は学習前に固定した。**
+節ペア 379 件の下書きへの Composer 推敲、劣化確認、三つ組み JSONL、BT 三つ組み文列型の学び直しは完了した。
+人が下書きより劣化していないと付けたのは 378 件、劣化していると付けたのは 1 件である。
+三つ組みに載った下書きは、学習側 328 件（各 3 対）、判定に使っている 50 節（各 3 対）。
+成果物は `outputs/pref-sentseq-section-triples`。既存の `outputs/pref-sentseq-keep*` は上書きしていない。
+工程 6 の 360 件の相対選択で文列型を学んだ実験（8a–8c）は実施済みだが、質の教師には使わない。
+DPO と Best-of-N は、三つ組みで学んだ評価器が独立した人手判定（8d）を通るまで着手しない。
+
 ## 用語
 
 本書で使う言葉は次の意味に固定する。これ以外の略語・符丁は使わない。
@@ -21,11 +29,13 @@ DOK（工程 3・4）の起動コマンドは手元の `docs/DOK-PLAN.md`（giti
 | 貪欲生成 | 各ステップで最も確率の高い語だけを選ぶ生成。同じ入力なら毎回同じ出力になる |
 | サンプリング生成 | 確率に従って語を選ぶ生成（温度 0.7、top_p 0.9、シード固定）。同じ入力から複数の案を出せる |
 | Best-of-N | 同一入力から N 案を生成し、報酬モデル（評価器）で順位を付けて最良の 1 本を採る。実装は `scripts/rank_pref_bt.py`（`make rank`）。工程 5 の比較 4・5 は N=8 の Best-of-N に相当 |
+| 中間 | 同じ下書きから出した LLM の推敲。質の評価器の尺度の真ん中に置く文。Composer（既定 `composer-2.5`）が、工程 4 と同じ指示文で 1 本出す。人が下書きより劣化していないと付けたものだけを三つ組みに入れる。推敲モデル（Qwen にアダプターを載せたもの）の生成は、中間にしない |
+| 三つ組み | 同じ下書きについての三つの選好対。人間の推敲 ＞ 下書き、人間の推敲 ＞ 生成、生成 ＞ 下書き。生成が下書きより劣化していると人が付けた件は、生成を含む対を作らない |
 
 ## 目的
 
 1. **評価器の性能の測定**: いまの評価器が人間の判断とどれだけ一致するかを、初めて直接測る。「評価器の性能をどう決めるか」自体が未解決の問題であり、この測定はその試行錯誤の一部である。事前の合格ラインは置かない。
-2. **推敲モデルの成否判定**: 条件を揃えた比較で、SFT によって「指示に従った推敲」が載ったかどうかを判定する。判定の根拠は人手のブラインド判定であり、評価器の点数でも gold との文字列一致でもない。選好に沿った生成の強化は工程 8 以降で行う（本計画の SFT 段階の目標ではない）。その強化は **DPO 等の on-policy 選好学習**と、**Best-of-N**（複数候補を報酬モデルで順位付けして最良を採る）の両方を残す。DPO で方針を更新し、同じ報酬モデルを Best-of-N の裁定にも使う、という組み合わせも想定する。
+2. **推敲モデルの成否判定**: 条件を揃えた比較で、SFT によって「指示に従った推敲」が載ったかどうかを判定する。判定の根拠は人手のブラインド判定であり、評価器の点数でも gold との文字列一致でもない。選好に沿った生成の強化は、質の評価器が独立した人手判定（8d）を通ったあとで行う（本計画の SFT 段階の目標ではない）。強化の手段は **DPO 等の on-policy 選好学習**と、**Best-of-N**（複数候補を報酬モデルで順位付けして最良を採る）の両方を残す。DPO で方針を更新し、同じ報酬モデルを Best-of-N の裁定にも使う、という組み合わせも想定する。
 
 ## これまでの実験の何が駄目だったか
 
@@ -82,7 +92,7 @@ DOK（工程 3・4）の起動コマンドは手元の `docs/DOK-PLAN.md`（giti
 
 ### 評価器の測定（合格ラインは置かない）
 
-評価器に事前の合否基準を置けるだけの知見がまだない。難試験（v2b / v2c）の勝率は参考値に留まる。
+評価器に事前の合否基準を置けるだけの知見がまだない。v2 / v2b / v2c の勝率は評価器の採否に使わない。
 そこで本計画では、同じ人手判定データを使って次を**測定**し、結果を評価器の現在地として記録する。
 
 - 比較の種類ごと（人間の推敲 対 下書き／人間の推敲 対 生成案／下書き 対 生成案／生成案どうし）の、人の判定との一致率
@@ -198,31 +208,74 @@ DOK（工程 3・4）の起動コマンドは手元の `docs/DOK-PLAN.md`（giti
 
 成果物: `scripts/analyze_blind_judgments.py`、`docs/RESULTS.md`
 
-### 工程 8: 評価器改善実験
+### 工程 8: 質の評価器の教師と学び直し
 
 質の評価器が再現するのは、下書きより人間の推敲がよいか、である。尺度の真ん中に置く文は、同じ下書きから出した LLM の推敲で、人が「下書きより劣化していない」と確かめたものに限る。工程 6 の 360 件の相対選択（ましなほう）は、この教師にしない。選抜 1 本も入れない。
 
-中間の生成は Composer（既定 `composer-2.5`）とする。推敲モデル（Qwen にアダプターを載せたもの）の日本語より、手元で出しやすく一定の質があるためである。指示文は工程 4 の評価生成と同一である。
+BT 三つ組み文列型の学習と工程 6 採点は済み。setwise 修正版（full-order）と human-top 版の DOK 学習も済み。v2b / v2c での採点記録は [RESULTS.md](RESULTS.md) §8・§9 に残すが、評価器の採否には使わない。2026-08-14 の旧 DOK 成果物（architecture=`joint_transformer_on_sentence_tokens`）は候補同値崩壊のため不採用だった。8a–8c は閉じた実験の記録である。
+
+評価器の目的は、同一下書きについて人間の推敲を最良に置くことである。各生成モデルの公平な優劣を測るものではない。教師の中間は Composer 固定でよい（Composer だけで学ぶことが目的を妨げない）。
+
+中間の生成は Composer（既定 `composer-2.5`）とする。推敲モデル（Qwen にアダプターを載せたもの）の日本語より、手元で出しやすく一定の質があるためである。指示文は工程 4 の評価生成と同一である。人間の推敲はプロンプトに見せない。人が付けるのは、生成が下書きより劣化していないかだけである。人間の推敲とは比べない。
 
 **新しい評価器が、独立した人手データで検証されるまで、DPO / Best-of-N の教師・裁定には使わない。**
 
-#### 8-mid. 節ペアの三つ組み（現行の質の教師）
+#### 8-mid. 節ペアの三つ組み（BT 文列型・setwise 修正版とも学習済み。v2 は評価器の採否に使わない）
 
-節ペア 379 件の下書きそれぞれに、上記の指示文で Composer 推敲を 1 本出す。人が下書きと生成だけを見て、劣化していないかを付ける。劣化していない件だけを、同じ下書きの三つ組みにする。
+節ペア 379 件の下書きそれぞれに、上記の指示文で Composer 推敲を 1 本出した。人が下書きと生成だけを見て、劣化していないかを付けた。劣化していない件だけを、同じ下書きの三つ組みにした。
 
 - 人間の推敲 ＞ 下書き
 - 人間の推敲 ＞ 生成
 - 生成 ＞ 下書き
 
-判定に使っている 50 節は、三つ組みの学習側には入れない（分割の heldout として valid に書く）。生成と劣化確認は 379 件すべてに対して行う。
+判定に使っている 50 節は、三つ組みの学習側には入れない（分割の heldout として valid に書く）。生成と劣化確認は 379 件すべてに対して行った。
+
+結果（2026-08-14）: 生成漏れなし。人が劣化していないと付けた 378 件、劣化していると付けた 1 件。劣化 1 件は学習側だったので、学習に載る下書きは 328 件（各 3 対）、valid は判定の 50 節すべて（各 3 対）。
 
 ```text
-make section-middle-gen          # CURSOR_API_KEY。途中で止めて再開可
-make section-middle-judge        # 0.0.0.0:8321。ブラウザは別機体からこのマシンの LAN アドレスへ
-make section-middle-triples      # pref_train.jsonl / pref_valid.jsonl
+make section-middle-gen          # 実施済み
+make section-middle-judge        # 実施済み
+make section-middle-triples      # 実施済み
+make build-section-middle-sentseq-image   # BT 三つ組み文列型 DOK（実施済み）
+make build-setwise-section-triples-image  # setwise 修正版 DOK（実施済み）
+# 手元スモーク例: DEVICE=cpu SETWISE_EPOCHS=1 make section-middle-setwise
 ```
 
-#### 8a. 360 件を開発用教師へ変換（実施済み。質の教師には使わない）
+**BT 三つ組み文列型**（独立 `s(source,candidate)` + 3 対 BT）の成果物は `outputs/pref-sentseq-section-triples`。既存の `outputs/pref-sentseq-keep*` は上書きしていない。工程 6 の 360 件をこの評価器で採点し直した結果は [RESULTS.md](RESULTS.md)。
+
+**setwise 文列型**（同一下書きについて `{draft, human, Composer}` を 1 回の前向き計算で順位付け。教師順位 human ＞ Composer ＞ draft。損失は ListMLE / Plackett-Luce）の修正版 architecture=`local_stream_then_joint_tokens_v2`（shared local stream encoder 1 layer + joint token encoder 1 layer）で DOK 学習済み。旧 joint-only 版は候補同値崩壊のため不採用。v2b / v2c の数値は [RESULTS.md](RESULTS.md) §8 に記録するが、採否の根拠にしない。
+
+| 項目 | 内容 |
+|------|------|
+| 教師 | `data/section_middle/pref_{train,valid}.jsonl` を item ごとに 3 行から `{draft,human,Composer}` へ復元 |
+| 入力 | source=draft、candidate set={draft,human,Composer}（draft 重複は意図どおり） |
+| モデル | 凍結 ruri 文埋め込み + 各 block を shared local Transformer（1 layer）で処理し、全文 token 列を joint Transformer（1 layer）へ。候補 slot/block 位置 embedding は付けない。`meta.json` の architecture=`local_stream_then_joint_tokens_v2` を loader が必須確認 |
+| 損失 | full order ListMLE（独立 BT 点 + listwise ではない） |
+| valid 指標 | listwise loss、human top-1（strict `>`）、exact order（strict `>`）、human＞Composer、human＞draft、Composer＞draft |
+| best | strict human top-1 を第一。tie-break: strict human＞Composer、strict exact order、loss |
+| 成果物 | `outputs/pref-setwise-section-triples`（kind=`pref-setwise-section-triples`、architecture=`local_stream_then_joint_tokens_v2`）。学習済み。採点・難試験の本線には使わない |
+| 手元スモーク | `DEVICE=cpu SETWISE_EPOCHS=1 make section-middle-setwise`（本学習は DOK） |
+| runtime | `scripts/pref_setwise_runtime.py` の `rank_candidates_setwise` |
+| v2b/v2c | `make hard-eval-setwise INPUT=... MODEL=...`（`scripts/score_hard_eval_setwise.py`） |
+
+**setwise human-top 比較**（architecture・三つ組み入力・分割・学習設定は full-order 版と同一。損失だけ human を最上位に置き、Composer と draft の相対順位は課さない）は実施済み。不採用。
+
+| 項目 | 内容 |
+|------|------|
+| 損失 | Plackett-Luce の第1項のみ（`logsumexp([s_h,s_c,s_d]) - s_h`） |
+| valid 指標 | human top-1、human＞Composer、human＞draft、human-top loss（比較用に listwise loss / exact order も記録） |
+| best | strict human top-1 を第一。tie-break: strict human＞Composer、strict human＞draft、human-top loss。best epoch 16 |
+| 成果物 | `outputs/pref-setwise-section-human-top`（kind=`pref-setwise-section-human-top`、loss_mode=`human_top`）。学習済み。採点・難試験の本線には使わない |
+| 手元スモーク | `DEVICE=cpu SETWISE_EPOCHS=1 make section-middle-setwise-human-top` |
+| DOK | `make build-setwise-section-human-top-image` → イメージ `pref-setwise-section-human-top:latest`（実施済み） |
+
+結果（2026-08-14）: 学習と同じ三つ組み valid 50 件で human top-1 30/50、human＞Composer 31/50、human＞draft 35/50。いずれも full-order 版（34/50・36/50・41/50）より低い。v2b / v2c の数値は [RESULTS.md](RESULTS.md) §9 に残すが、評価器の採否には使わない。human-top は valid 上では改善ではない。
+
+人間の推敲 ＞ Composer は定義である。劣化確認は Composer を三つ組みの中間に載せるためのフィルタである。
+
+v2 / v2b / v2c の 24 件は、制御改悪（`deg-*`）と旧エンコーダのトークン上限のために節から 3 段落窓を切ったデータである。候補を人間・Fable / Composer・下書きに差し替えたあとも、単位は窓のままである。現行の評価目標（節の下書きに対する人間の推敲と、意味を保った別案）のための試験ではない。採点記録は残すが、評価器の採否・成功指標・学び直しの根拠にしない。次の評価器設計は未決である。
+
+#### 8a. 360 件を開発用教師へ変換（実施済み。質の教師には使わない。いまはやらない）
 
 `make generated-pref-data` で、`data/blind_eval/pairs.jsonl`・`judgments.jsonl`・`items.jsonl` を結合する。
 
@@ -231,11 +284,11 @@ make section-middle-triples      # pref_train.jsonl / pref_valid.jsonl
 - 欠陥ペア・tie を除外しない
 - 出力先: `data/generated_pref_experiment/`（原稿本文を含むためリポジトリ外扱い）
 
-#### 8b. item 単位 5-fold 開発評価
+#### 8b. item 単位 5-fold 開発評価（実施済み。いまはやらない）
 
 同じ item の 6 比較を分離しない。seed 42 の決定的 5-fold で `folds_section/fold_{0..4}/train.jsonl` と `valid.jsonl` を作る。節 50 item なので、各 fold の valid は 10 item × 6 = 60 件、train は 40 item × 6 = 240 件。fold 間で valid item が重複しないことを検査し、重なれば失敗させる。断片 10 item も同じ分け方で `folds_hunk/` に書くが、8c の学習には入れない。
 
-#### 8c. 節の文列型を、判定 240 件と節ペア学習側 329 件で学習する
+#### 8c. 節の文列型を、判定 240 件と節ペア学習側 329 件で学習する（実施済み。質の教師には使わない。いまはやらない）
 
 `scripts/train_generated_pref_sentseq.py` が読むデータは次の二つである。
 
@@ -255,11 +308,20 @@ make section-middle-triples      # pref_train.jsonl / pref_valid.jsonl
 - 文字数特徴の on/off を CLI で切替可能。実験既定は **off**（現行の文列型は文字数特徴ありで、点数と文字数の Spearman 相関 0.932）
 - 出力先: `outputs/generated-pref-*`（現行 `outputs/pref-sentseq-keep*` は上書きしない）
 - 指標: non-tie accuracy、three-way accuracy、three-way macro recall（a/b/tie）、tie 件数と tie margin 統計、3-way confusion。tie と判定する点数差の閾値は、その fold の判定側 train だけで決め、valid へ適用する。best epoch は valid の three-way macro recall。比較 4・5（`selection_biased`）は指標に使わない
-- **CPU はスモークのみ**（`make generated-pref-sentseq-smoke`）。5-fold 本学習は DOK（V100）。起動手順は [DOK-PLAN.md](DOK-PLAN.md)
+- 起動手順は [DOK-PLAN.md](DOK-PLAN.md)
 
-#### 8d. 独立ブラインド判定（評価器非選抜）
+#### 8d. 独立ブラインド判定（評価器非選抜。段階 5 が検証 50 件で人間の推敲を最上に置けたあと）
 
 新しい下書き・固定生成候補・評価器による選抜を使わない、独立したブラインド判定を別途用意する。ここを通るまで、改善後評価器を本番採点・DPO 教師・Best-of-N 裁定に載せない。
+
+固定した内容（`make freeze-8d-items`。再実行すると seed 42 で同じ 40 件になる）:
+
+- 下書き 40 件。出典は `data/pref_keep_split_hunk/valid.jsonl`。学習 328 件と検証 50 件の三つ組みに使った item は除く。下書きは 100 文字以上。seed 42
+- 候補は 2 本。同じ指示文で Composer（`composer-2.5`）が温度 0.7、top_p 0.9、seed 1 と seed 2 で 1 本ずつ出す。評価器が選んだ候補は使わない
+- 判定は左右の役割を見せず、下書きと二案を並べて人が a / b / 同等を付ける
+- 集計の分母は、人が同等としなかった件。分子は、人が付けた上下と段階 5 の評価器が二案に付けた点の上下が一致した件数
+
+一覧は `data/blind_eval/8d_items.jsonl`、手順は `data/blind_eval/8d_protocol.json`。候補本文の生成は判定の直前に行い、生成後は置き換えない。
 
 #### 8e. 独立評価を通るまで DPO / Best-of-N を止める
 
@@ -284,7 +346,7 @@ DPO で方針を更新したあとも、同じ報酬モデルを Best-of-N の�
 
 - 推敲モデルの判定基準は本書の値で固定し、結果を見てから動かさない
 - 評価器には事前の合格ラインを置かず、測定結果を記録して次の測り方・学び直しを決める
-- 質の評価器の現行教師は 8-mid の三つ組みである。工程 6 の 360 件の相対選択は質の教師にしない
+- setwise 修正版（full-order）と human-top 版の DOK 学習は済み。v2 / v2b / v2c は評価器の採否に使わない。human-top は学習と同じ三つ組み valid では full-order より悪化しており、その比較では改善ではない。質の評価器の教師は節ペアの三つ組み（human ＞ Composer ＞ draft。Composer 固定）。人間の推敲 ＞ Composer は定義である。工程 6 の 360 件の相対選択と、8a–8c の成果物は質の教師にしない
 - 学習設定（指示文・エポック数・評価器の設定）は最適と証明されたものではなく、本計画の固定条件にすぎない。設定違いの比較は、推敲モデルは人手判定の費用がかかるので 1 設定に絞り、評価器は同じ判定データで費用なしに行う
 - 生成の比較は、指示文とデコード条件を必ず揃える
 - 推敲モデルの成否判断の根拠は人手判定のみとする。**8d の独立評価を通過するまで**、改善前・改善後を問わず評価器を候補選抜・DPO 教師・Best-of-N 裁定に使わない。工程 5 の比較 4・5 で評価器が行った選抜は、当時の探索データとしてのみ扱う
@@ -295,7 +357,8 @@ DPO で方針を更新したあとも、同じ報酬モデルを Best-of-N の�
 ```
 工程1（手元） → 工程2（手元） → 工程3（GPU・手元） → 工程4（GPU） → 工程5は工程3・4と並行可（手元）
                                                         ↓
-                                        工程6（判定者） → 工程7（手元） → 工程8
+                                        工程6（判定者） → 工程7（手元） → 工程 8-mid（BT・setwise 学習済み。v2 は採否に使わない。評価器設計は未決） → 8d
+                                                              ↘ 8a–8c は実施済み（質の教師にしない）
 ```
 
 | 工程 | 実施者 | 目安 |
@@ -307,4 +370,6 @@ DPO で方針を更新したあとも、同じ報酬モデルを Best-of-N の�
 | 5 | エージェント | 半日 |
 | 6 | 判定者 | 3〜6 時間（分割可） |
 | 7 | エージェント | 短時間 |
-| 8 | エージェント（Composer 生成）＋判定者（劣化確認）＋DOK（文列型の学習） | 生成は SDK。劣化確認は 379 件。学習は三つ組みのあと |
+| 8-mid | DOK＋手元 | BT・setwise full-order・human-top とも学習済み。v2b/v2c は採否に使わない。評価器設計は未決 |
+| 8a–8c | （実施済み。いまはやらない） | 工程 6 の相対選択による実験。質の教師には使わない |
+| 8d 以降 | 判定者＋エージェント | 独立ブラインド判定のあと。DPO / Best-of-N はここを通るまで着手しない |

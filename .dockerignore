@@ -16,6 +16,8 @@ data/*
 !data/generated_pref_experiment/
 !data/generated_pref_experiment/folds_section/
 !data/generated_pref_experiment/folds_section/**
+!data/section_middle/
+!data/section_middle/**
 docs
 *.md
 !docs/FLY-SERVE.md
@@ -50,3 +52,16 @@ scripts/*
 !scripts/generated_pref_utils.py
 !scripts/dok_pref_keep.sh
 !scripts/dok_generated_pref_sentseq.sh
+!scripts/dok_section_middle_sentseq.sh
+!scripts/train_pref_setwise.py
+!scripts/setwise_model.py
+!scripts/setwise_triple_utils.py
+!scripts/dok_setwise_section_triples.sh
+!scripts/dok_setwise_section_human_top.sh
+!scripts/train_pref_multigranular.py
+!scripts/run_pref_multigranular_stages.py
+!scripts/eval_pref_multigranular.py
+!scripts/pref_multigranular_runtime.py
+!scripts/pref_pair_utils.py
+!scripts/pref_setwise_runtime.py
+!scripts/dok_pref_multigranular.sh

@@ -24,6 +24,15 @@
 同じ下書きの三つ組み（人間の推敲 ＞ Composer 推敲 ＞ 下書き）。人が付けるのは劣化の有無だけ。
 
 - `generate_section_composer_revisions.py`、`middle_degrade_server.py`、`build_section_triples.py`
+- 学び直し: `train_pref_sentseq.py`（`make build-section-middle-sentseq-image`。出力は `outputs/pref-sentseq-section-triples`）
+
+## 段階 1 から 7 の評価器
+
+検証 50 件で人間の推敲を最上に置く評価器を、段階を書いた順に学ぶ。
+
+- 学習: `train_pref_multigranular.py`、`run_pref_multigranular_stages.py`、`dok_pref_multigranular.sh`
+- 採点: `eval_pref_multigranular.py`、`pref_multigranular_runtime.py`
+- 人手判定の下書き固定: `freeze_8d_items.py`
 
 ## 既存の文列型・Bradley-Terry 型（工程 3 で学び直したもの）
 

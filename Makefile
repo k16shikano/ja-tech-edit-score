@@ -17,6 +17,9 @@ PREF_KEEP_SPLIT_HUNK := $(DATA_DIR)/pref_keep_split_hunk
 PREF_KEEP_SPLIT_SECTION := $(DATA_DIR)/pref_keep_split_section
 SENTSEQ_KEEP_OUTPUT_DIR := $(ROOT)outputs/pref-sentseq-keep
 SENTSEQ_KEEP_PAIRSPLIT_DIR := $(ROOT)outputs/pref-sentseq-keep-pairsplit
+SENTSEQ_MIDDLE_DIR := $(ROOT)outputs/pref-sentseq-section-triples
+SETWISE_MIDDLE_DIR := $(ROOT)outputs/pref-setwise-section-triples
+SETWISE_HUMAN_TOP_DIR := $(ROOT)outputs/pref-setwise-section-human-top
 
 EMBED_MODEL ?= cl-nagoya/ruri-v3-30m
 TRUNCATE_DIM ?= 0
@@ -28,8 +31,10 @@ MAX_SEQ_LENGTH ?= 512
 BATCH_SIZE ?= 32
 
 SENTSEQ_BATCH_SIZE ?= 64
+MULTIGRANULAR_STAGES ?= 1,2,3,4,5,6,7
+MULTIGRANULAR_SEEDS ?= 0
 
-.PHONY: help venv data mine-sections pairsplit-data pref-keep-data train-bt-keep train-bt-keep-pairsplit train-sentseq-keep train-sentseq-keep-pairsplit build-pref-keep-image build-generated-pref-sentseq-image build-serve-image select-blind-items build-blind-pairs blind-judge analyze-blind-judgments generated-pref-data generated-pref-sentseq-smoke generated-pref-sentseq-cv section-middle-gen section-middle-judge section-middle-triples edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk score-bt rank converge check calibrate-margins revise serve install-bin install-skills daemon daemon-stop test clean-model
+.PHONY: help venv data mine-sections pairsplit-data pref-keep-data train-bt-keep train-bt-keep-pairsplit train-sentseq-keep train-sentseq-keep-pairsplit build-pref-keep-image build-generated-pref-sentseq-image build-section-middle-sentseq-image build-setwise-section-triples-image build-setwise-section-human-top-image build-pref-multigranular-image section-middle-setwise section-middle-setwise-human-top hard-eval-setwise pref-multigranular-smoke pref-multigranular freeze-8d-items build-serve-image select-blind-items build-blind-pairs blind-judge analyze-blind-judgments generated-pref-data generated-pref-sentseq-smoke generated-pref-sentseq-cv section-middle-gen section-middle-judge section-middle-triples section-middle-sentseq edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk score-bt rank converge check calibrate-margins revise serve install-bin install-skills daemon daemon-stop test clean-model
 
 help:
 	@echo "現行（docs/PLAN.md）:"
@@ -39,7 +44,16 @@ help:
 	@echo "  make pref-keep-data          # 節/断片の選好 JSONL"
 	@echo "  make edit-sft MODEL=<hf-id>  # 工程3: 推敲モデルの SFT"
 	@echo "  make select-blind-items / build-blind-pairs / blind-judge / analyze-blind-judgments"
-	@echo "  make section-middle-gen / section-middle-judge / section-middle-triples  # 工程8-mid"
+	@echo "  make section-middle-gen / section-middle-judge / section-middle-triples  # 工程8-mid 教師"
+	@echo "  make build-section-middle-sentseq-image  # 旧 BT 三つ組み文列型 DOK"
+	@echo "  make build-setwise-section-triples-image  # setwise 本学習 DOK"
+	@echo "  make build-setwise-section-human-top-image  # setwise human-top 比較 DOK"
+	@echo "  make freeze-8d-items                      # 独立人手判定の下書き 40 件を固定"
+	@echo "  make pref-multigranular-smoke             # 段階学習の手元確認（DEVICE=cpu EPOCHS=1 等）"
+	@echo "  make build-pref-multigranular-image       # 段階 1-7 の DOK イメージ"
+	@echo "  make section-middle-setwise               # 手元スモーク（DEVICE=cpu SETWISE_EPOCHS=1 等）"
+	@echo "  make section-middle-setwise-human-top     # human-top 手元スモーク"
+	@echo "  make hard-eval-setwise INPUT=... MODEL=... REPORT=...  # v2b/v2c 採点"
 	@echo "  make train-sentseq-keep-pairsplit / train-bt-keep-pairsplit  # 工程3の評価器"
 	@echo "  make test"
 	@echo ""
@@ -336,6 +350,7 @@ analyze-blind-judgments:
 	  --adapter-greedy "$(or $(ADAPTER_GREEDY),outputs/edit-sft-eval-v3/adapter_greedy.jsonl)" \
 	  --sentseq-model "$(SENTSEQ_KEEP_PAIRSPLIT_DIR)" \
 	  --bt-model "$(BT_KEEP_PAIRSPLIT_DIR)" \
+	  --extra-sentseq-model "$(SENTSEQ_MIDDLE_DIR)" \
 	  --analysis-json "$(DATA_DIR)/blind_eval/analysis.json" \
 	  --results-md docs/RESULTS.md
 
@@ -405,6 +420,111 @@ section-middle-triples:
 	  --revisions "$(SECTION_MIDDLE_DIR)/revisions.jsonl" \
 	  --judgments "$(SECTION_MIDDLE_DIR)/judgments.jsonl" \
 	  --out-dir "$(SECTION_MIDDLE_DIR)"
+
+section-middle-sentseq:
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/train_pref_sentseq.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" \
+	  --eval-file "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" \
+	  --output-dir "$(SENTSEQ_MIDDLE_DIR)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --epochs $(or $(SENTSEQ_KEEP_EPOCHS),40) \
+	  --batch-size $(SENTSEQ_BATCH_SIZE) \
+	  --device "$(or $(DEVICE),cuda)" \
+	  --lr "$(or $(SENTSEQ_KEEP_LR),3e-4)" \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),)
+
+build-section-middle-sentseq-image:
+	bash scripts/build_push_section_middle_sentseq_image.sh
+
+section-middle-setwise:
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/train_pref_setwise.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" \
+	  --eval-file "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" \
+	  --output-dir "$(SETWISE_MIDDLE_DIR)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --epochs $(or $(SETWISE_EPOCHS),40) \
+	  --batch-size $(or $(SETWISE_BATCH_SIZE),32) \
+	  --device "$(or $(DEVICE),cuda)" \
+	  --lr "$(or $(SENTSEQ_KEEP_LR),3e-4)" \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),)
+
+build-setwise-section-triples-image:
+	bash scripts/build_push_setwise_section_triples_image.sh
+
+section-middle-setwise-human-top:
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/train_pref_setwise.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" \
+	  --eval-file "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" \
+	  --output-dir "$(SETWISE_HUMAN_TOP_DIR)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --epochs $(or $(SETWISE_EPOCHS),40) \
+	  --batch-size $(or $(SETWISE_BATCH_SIZE),32) \
+	  --device "$(or $(DEVICE),cuda)" \
+	  --lr "$(or $(SENTSEQ_KEEP_LR),3e-4)" \
+	  --loss-mode human_top \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),)
+
+build-setwise-section-human-top-image:
+	bash scripts/build_push_setwise_section_human_top_image.sh
+
+freeze-8d-items:
+	$(PYTHON) scripts/freeze_8d_items.py
+
+pref-multigranular-smoke:
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/run_pref_multigranular_stages.py \
+	  --stages "$(or $(STAGES),2)" \
+	  --device "$(or $(DEVICE),cpu)" \
+	  --epochs $(or $(EPOCHS),1) \
+	  --phase1-epochs $(or $(PHASE1_EPOCHS),1) \
+	  --phase2-epochs $(or $(PHASE2_EPOCHS),1) \
+	  --batch-size $(or $(SETWISE_BATCH_SIZE),2) \
+	  --max-train $(or $(MAX_TRAIN),8) \
+	  --max-valid $(or $(MAX_VALID),8) \
+	  --seeds "$(or $(SEEDS),$(MULTIGRANULAR_SEEDS))" \
+	  --report-dir "$(or $(REPORT_DIR),outputs/pref-multigranular-report-smoke)"
+
+pref-multigranular:
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/run_pref_multigranular_stages.py \
+	  --stages "$(or $(STAGES),$(MULTIGRANULAR_STAGES))" \
+	  --device "$(or $(DEVICE),cuda)" \
+	  --epochs $(or $(EPOCHS),40) \
+	  --phase1-epochs $(or $(PHASE1_EPOCHS),10) \
+	  --phase2-epochs $(or $(PHASE2_EPOCHS),40) \
+	  --batch-size $(or $(SETWISE_BATCH_SIZE),32) \
+	  --seeds "$(or $(SEEDS),$(MULTIGRANULAR_SEEDS))" \
+	  --gate-model "$(or $(GATE_MODEL),$(BT_GATE_DIR))" \
+	  --report-dir "$(or $(REPORT_DIR),outputs/pref-multigranular-report)"
+
+build-pref-multigranular-image:
+	bash scripts/build_push_pref_multigranular_image.sh
+
+hard-eval-setwise:
+	@test -n "$(INPUT)" || (echo "INPUT=data/hard_eval/bases_v2b_human_fable_copy.jsonl 等が必要" && exit 1)
+	@test -n "$(MODEL)" || (echo "MODEL=$(SETWISE_MIDDLE_DIR) 等が必要" && exit 1)
+	$(PYTHON) scripts/score_hard_eval_setwise.py \
+	  --input "$(INPUT)" \
+	  --model "$(MODEL)" \
+	  --report "$(or $(REPORT),outputs/hard_eval_setwise_report.json)"
 
 test:
 	$(PYTHON) -m pytest tests/ -q
