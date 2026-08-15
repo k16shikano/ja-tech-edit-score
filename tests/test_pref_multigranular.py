@@ -24,6 +24,7 @@ from setwise_model import (
   pair_checkpoint_selection_key,
   public_relative_scores,
 )
+from pref_pair_utils import PairExample
 from setwise_triple_utils import ROLE_DRAFT, ROLE_HUMAN, SetwiseTriple
 from train_pref_multigranular import (
   STAGE_PAIR_HUMANTOP,
@@ -152,6 +153,61 @@ def test_human_top_loss_does_not_order_composer_and_draft() -> None:
   assert float(human_top_loss(torch.tensor([[3.0, 1.0, 0.0]]), human).item()) == float(
     human_top_loss(torch.tensor([[3.0, 0.0, 1.0]]), human).item()
   )
+
+
+def test_replay_epoch_allows_mixed_candidate_counts() -> None:
+  triple = SetwiseTriple(
+    item_id="synthetic-section",
+    source_text="下書き一。下書き二。",
+    draft="下書き一。下書き二。",
+    human="人間一。人間二。人間三。",
+    composer="生成一。生成二。",
+    meta={},
+  )
+  section_examples = examples_from_triples([triple], include_composer=True)
+  hunk_example = PairExample(
+    item_id="synthetic-hunk",
+    source_text="段落下書き。",
+    candidates=("段落人間。", "段落下書き。"),
+    roles=(ROLE_HUMAN, ROLE_DRAFT),
+    unit="hunk",
+  )
+  texts = [
+    triple.source_text,
+    triple.human,
+    triple.composer,
+    triple.draft,
+    hunk_example.source_text,
+    hunk_example.candidates[0],
+    hunk_example.candidates[1],
+  ]
+  _, sent_to_embedding = _prepared(texts, embed_dim=16, seed=7)
+  cfg = SetwiseTrainConfig(
+    d_model=32,
+    local_num_layers=1,
+    joint_num_layers=1,
+    dropout=0.0,
+    epochs=1,
+    batch_size=1,
+    lr=5e-3,
+    max_sents=8,
+    seed=0,
+    loss_mode=LOSS_MODE_HUMAN_TOP,
+  )
+  _, train, valid = train_multigranular_model(
+    section_examples,
+    [hunk_example],
+    section_examples,
+    cfg,
+    device=torch.device("cpu"),
+    score_mode=SCORE_MODE_INDEPENDENT,
+    phase1_epochs=0,
+    phase2_epochs=1,
+    replay_hunk=True,
+    precomputed_embeddings=sent_to_embedding,
+  )
+  assert "train_objective_loss" in train
+  assert "valid_human_among_top" in valid
 
 
 def test_independent_overfit_puts_human_among_top() -> None:

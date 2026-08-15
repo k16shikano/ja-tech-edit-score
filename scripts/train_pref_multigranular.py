@@ -261,13 +261,36 @@ def _run_epoch(
     train_human.append(human_idx)
     train_composer.append(composer_idx)
     train_draft.append(draft_idx)
-  metrics = compute_setwise_metrics(
-    torch.cat(train_logits, dim=0),
-    torch.cat(train_rank, dim=0),
-    human_index=torch.cat(train_human, dim=0),
-    composer_index=torch.cat(train_composer, dim=0),
-    draft_index=torch.cat(train_draft, dim=0),
-  )
+  if train_logits:
+    by_k: dict[int, dict[str, list[torch.Tensor]]] = {}
+    for logits, rank, human, composer, draft in zip(
+      train_logits,
+      train_rank,
+      train_human,
+      train_composer,
+      train_draft,
+    ):
+      k = logits.shape[-1]
+      bucket = by_k.setdefault(
+        k,
+        {"logits": [], "rank": [], "human": [], "composer": [], "draft": []},
+      )
+      bucket["logits"].append(logits)
+      bucket["rank"].append(rank)
+      bucket["human"].append(human)
+      bucket["composer"].append(composer)
+      bucket["draft"].append(draft)
+    pick_k = 3 if 3 in by_k else next(iter(by_k))
+    picked = by_k[pick_k]
+    metrics = compute_setwise_metrics(
+      torch.cat(picked["logits"], dim=0),
+      torch.cat(picked["rank"], dim=0),
+      human_index=torch.cat(picked["human"], dim=0),
+      composer_index=torch.cat(picked["composer"], dim=0),
+      draft_index=torch.cat(picked["draft"], dim=0),
+    )
+  else:
+    metrics = {}
   metrics["train_objective_loss"] = epoch_loss / max(n_batches, 1)
   metrics["train_human_top_loss"] = metrics["train_objective_loss"]
   return metrics
