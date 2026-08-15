@@ -42,7 +42,7 @@ def load_sentseq_model(
   if not artifact_path.is_file():
     raise FileNotFoundError(f"model not found: {artifact_path}")
   artifact = torch.load(artifact_path, map_location="cpu", weights_only=False)
-  if artifact.get("kind") != "pref-sentseq":
+  if artifact.get("kind") not in ("pref-sentseq", "pref-detect"):
     raise ValueError(f"not a pref-sentseq artifact: {artifact_path}")
 
   config = artifact["config"]

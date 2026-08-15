@@ -598,7 +598,7 @@ def load_sentseq_model_from_artifact(
   device: torch.device,
 ) -> SentSeqRewardModel:
   config = artifact["config"]
-  if config.get("kind") != "pref-sentseq":
+  if config.get("kind") not in ("pref-sentseq", "pref-detect"):
     raise ValueError("not a pref-sentseq artifact")
   embed_dim = int(config["embed_dim"])
   feature_dim = int(config["feature_dim"])
