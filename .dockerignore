@@ -29,6 +29,8 @@ outputs/pref-sentseq
 outputs/pref-sentseq-*
 !outputs/pref-sentseq-keep
 !outputs/pref-sentseq-keep/**
+!outputs/pref-sentseq-section-triples
+!outputs/pref-sentseq-section-triples/**
 !outputs/pref-sentseq-3e4
 !outputs/pref-sentseq-3e4/**
 !outputs/pref-sentseq-anchor-2stage-v2
@@ -53,6 +55,11 @@ scripts/*
 !scripts/dok_pref_keep.sh
 !scripts/dok_generated_pref_sentseq.sh
 !scripts/dok_section_middle_sentseq.sh
+!scripts/train_pref_nce.py
+!scripts/pref_nce_runtime.py
+!scripts/dok_section_middle_nce.sh
+!scripts/train_pref_detect.py
+!scripts/dok_section_middle_detect.sh
 !scripts/train_pref_setwise.py
 !scripts/setwise_model.py
 !scripts/setwise_triple_utils.py

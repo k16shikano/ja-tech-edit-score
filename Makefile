@@ -20,6 +20,9 @@ SENTSEQ_KEEP_PAIRSPLIT_DIR := $(ROOT)outputs/pref-sentseq-keep-pairsplit
 SENTSEQ_MIDDLE_DIR := $(ROOT)outputs/pref-sentseq-section-triples
 SETWISE_MIDDLE_DIR := $(ROOT)outputs/pref-setwise-section-triples
 SETWISE_HUMAN_TOP_DIR := $(ROOT)outputs/pref-setwise-section-human-top
+NCE_MIDDLE_DIR := $(ROOT)outputs/pref-nce-section
+DETECT_MIDDLE_DIR := $(ROOT)outputs/pref-detect-section
+DETECT_CD_MIDDLE_DIR := $(ROOT)outputs/pref-detect-cd-section
 
 EMBED_MODEL ?= cl-nagoya/ruri-v3-30m
 TRUNCATE_DIM ?= 0
@@ -34,33 +37,35 @@ SENTSEQ_BATCH_SIZE ?= 64
 MULTIGRANULAR_STAGES ?= 1,2,3,4,5,6,7
 MULTIGRANULAR_SEEDS ?= 0
 
-.PHONY: help venv data mine-sections pairsplit-data pref-keep-data train-bt-keep train-bt-keep-pairsplit train-sentseq-keep train-sentseq-keep-pairsplit build-pref-keep-image build-generated-pref-sentseq-image build-section-middle-sentseq-image build-setwise-section-triples-image build-setwise-section-human-top-image build-pref-multigranular-image section-middle-setwise section-middle-setwise-human-top hard-eval-setwise pref-multigranular-smoke pref-multigranular freeze-8d-items build-serve-image select-blind-items build-blind-pairs blind-judge analyze-blind-judgments generated-pref-data generated-pref-sentseq-smoke generated-pref-sentseq-cv section-middle-gen section-middle-judge section-middle-triples section-middle-sentseq edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk score-bt rank converge check calibrate-margins revise serve install-bin install-skills daemon daemon-stop test clean-model
+.PHONY: help venv data mine-sections pairsplit-data pref-keep-data train-bt-keep train-bt-keep-pairsplit train-sentseq-keep train-sentseq-keep-pairsplit build-pref-keep-image build-generated-pref-sentseq-image build-section-middle-sentseq-image build-setwise-section-triples-image build-setwise-section-human-top-image build-section-middle-nce-image section-middle-nce build-section-middle-detect-image section-middle-detect build-section-middle-detect-cd-image section-middle-detect-cd build-pref-multigranular-image section-middle-setwise section-middle-setwise-human-top hard-eval-setwise pref-multigranular-smoke pref-multigranular freeze-8d-items build-serve-image select-blind-items build-blind-pairs blind-judge pref-valid-blind-pairs pref-valid-blind-judge analyze-blind-judgments generated-pref-data generated-pref-sentseq-smoke generated-pref-sentseq-cv section-middle-gen section-middle-judge section-middle-triples section-middle-sentseq edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk score-bt rank converge check calibrate-margins revise serve install-bin install-skills daemon daemon-stop test clean-model
 
 help:
-	@echo "現行（docs/PLAN.md）:"
+	@echo "現行（docs/PLAN.md / BRIEF.md）:"
 	@echo "  make venv"
-	@echo "  make data / mine-sections    # ブランチ対・節ペアの採掘"
-	@echo "  make pairsplit-data          # 工程1: ペア単位分割"
-	@echo "  make pref-keep-data          # 節/断片の選好 JSONL"
-	@echo "  make edit-sft MODEL=<hf-id>  # 工程3: 推敲モデルの SFT"
-	@echo "  make select-blind-items / build-blind-pairs / blind-judge / analyze-blind-judgments"
-	@echo "  make section-middle-gen / section-middle-judge / section-middle-triples  # 工程8-mid 教師"
-	@echo "  make build-section-middle-sentseq-image  # 旧 BT 三つ組み文列型 DOK"
-	@echo "  make build-setwise-section-triples-image  # setwise 本学習 DOK"
-	@echo "  make build-setwise-section-human-top-image  # setwise human-top 比較 DOK"
+	@echo "  make section-middle-nce                   # InfoNCE 手元スモーク（DEVICE=cpu EPOCHS=1 等）"
+	@echo "  make build-section-middle-nce-image         # InfoNCE DOK"
+	@echo "  make section-middle-detect               # 人間検出 手元スモーク（DEVICE=cpu EPOCHS=1 等）"
+	@echo "  make build-section-middle-detect-image     # 人間検出 DOK"
+	@echo "  make section-middle-detect-cd            # 検出+Composer対下書き 手元スモーク"
+	@echo "  make build-section-middle-detect-cd-image  # 検出+Composer対下書き DOK"
 	@echo "  make freeze-8d-items                      # 独立人手判定の下書き 40 件を固定"
-	@echo "  make pref-multigranular-smoke             # 段階学習の手元確認（DEVICE=cpu EPOCHS=1 等）"
-	@echo "  make build-pref-multigranular-image       # 段階 1-7 の DOK イメージ"
-	@echo "  make section-middle-setwise               # 手元スモーク（DEVICE=cpu SETWISE_EPOCHS=1 等）"
-	@echo "  make section-middle-setwise-human-top     # human-top 手元スモーク"
-	@echo "  make hard-eval-setwise INPUT=... MODEL=... REPORT=...  # v2b/v2c 採点"
-	@echo "  make train-sentseq-keep-pairsplit / train-bt-keep-pairsplit  # 工程3の評価器"
+	@echo "  make pref-valid-blind-pairs               # B検証50 人間vs Composer 対"
+	@echo "  make pref-valid-blind-judge               # B検証50 ブラインド判定 Web"
 	@echo "  make test"
 	@echo ""
-	@echo "実験済み（質の教師には使わない）:"
-	@echo "  make generated-pref-data / generated-pref-sentseq-smoke / generated-pref-sentseq-cv"
+	@echo "実施済みの入口:"
+	@echo "  make data / mine-sections    # ブランチ対・節ペアの採掘"
+	@echo "  make pairsplit-data          # ペア単位分割"
+	@echo "  make pref-keep-data          # 節/断片の選好 JSONL"
+	@echo "  make edit-sft MODEL=<hf-id>  # 推敲モデルの SFT"
+	@echo "  make select-blind-items / build-blind-pairs / blind-judge / analyze-blind-judgments"
+	@echo "  make section-middle-gen / section-middle-judge / section-middle-triples  # 教師データ B"
+	@echo "  make train-sentseq-keep-pairsplit / train-bt-keep-pairsplit"
+	@echo "  make build-section-middle-sentseq-image / build-setwise-section-triples-image / build-setwise-section-human-top-image"
+	@echo "  make section-middle-setwise / section-middle-setwise-human-top"
+	@echo "  make pref-multigranular-smoke / build-pref-multigranular-image"
 	@echo ""
-	@echo "公開 Web / 順位付け（keep 評価器。8d まで DPO・Best-of-N の教師には使わない）:"
+	@echo "公開 Web / 順位付け:"
 	@echo "  make serve / revise / rank / check"
 	@echo ""
 	@echo "探索用の旧スクリプトは scripts-old/（make からは外した）。対応表は scripts/README.md"
@@ -197,9 +202,9 @@ score-bt:
 	  --source-text "$(SOURCE)" \
 	  --candidate-text "$(CANDIDATE)"
 
-# 二軸運用の既定: 主モデル=pref-sentseq-keep（節）、ゲート=pref-bt-keep（hunk）
+# 二軸運用の既定: 主モデル=pref-sentseq-section-triples（教師データ B）、ゲート=pref-bt-keep（hunk）
 # GATE_MODEL= （空）でゲートなしの一軸に戻せる
-SENTSEQ_BEST_DIR := $(ROOT)outputs/pref-sentseq-keep
+SENTSEQ_BEST_DIR := $(ROOT)outputs/pref-sentseq-section-triples
 BT_GATE_DIR := $(ROOT)outputs/pref-bt-keep
 RANK_MODEL ?= $(if $(wildcard $(SENTSEQ_BEST_DIR)),$(SENTSEQ_BEST_DIR),$(BT_GATE_DIR))
 GATE_MODEL ?= $(if $(and $(findstring pref-sentseq,$(RANK_MODEL)),$(wildcard $(BT_GATE_DIR))),$(BT_GATE_DIR),)
@@ -335,6 +340,21 @@ blind-judge:
 	  --judgments "$(DATA_DIR)/blind_eval/judgments.jsonl" \
 	  --host $(or $(HOST),0.0.0.0) \
 	  --port $(or $(PORT),8320)
+
+pref-valid-blind-pairs:
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/build_pref_valid_gold_vs_composer_pairs.py \
+	  --valid-file "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" \
+	  --out "$(DATA_DIR)/blind_eval/pairs_pref_valid_gold_vs_composer.jsonl" \
+	  --seed "$(or $(SEED),42)"
+
+pref-valid-blind-judge:
+	@test -s "$(DATA_DIR)/blind_eval/pairs_pref_valid_gold_vs_composer.jsonl" || (echo "run make pref-valid-blind-pairs first" && exit 1)
+	$(PYTHON) scripts/blind_judge_server.py \
+	  --pairs "$(DATA_DIR)/blind_eval/pairs_pref_valid_gold_vs_composer.jsonl" \
+	  --judgments "$(DATA_DIR)/blind_eval/judgments_pref_valid_gold_vs_composer.jsonl" \
+	  --host $(or $(HOST),0.0.0.0) \
+	  --port $(or $(PORT),8324)
 
 GENERATED_PREF_DATA_DIR := $(DATA_DIR)/generated_pref_experiment
 GENERATED_PREF_OUTPUT_DIR := $(ROOT)outputs/generated-pref-sentseq
@@ -484,6 +504,81 @@ section-middle-setwise-human-top:
 
 build-setwise-section-human-top-image:
 	bash scripts/build_push_setwise_section_human_top_image.sh
+
+section-middle-nce:
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/train_pref_nce.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" \
+	  --eval-file "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" \
+	  --output-dir "$(NCE_MIDDLE_DIR)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --epochs $(or $(NCE_EPOCHS),40) \
+	  --batch-size $(or $(NCE_BATCH_SIZE),32) \
+	  --device "$(or $(DEVICE),cpu)" \
+	  --lr "$(or $(SENTSEQ_KEEP_LR),3e-4)" \
+	  --tau "$(or $(NCE_TAU),0.07)" \
+	  --seed "$(or $(SEED),0)" \
+	  $(if $(MAX_TRAIN),--max-train $(MAX_TRAIN),) \
+	  $(if $(MAX_VALID),--max-valid $(MAX_VALID),) \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),)
+
+build-section-middle-nce-image:
+	bash scripts/build_push_section_middle_nce_image.sh
+
+section-middle-detect:
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/train_pref_detect.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" \
+	  --eval-file "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" \
+	  --output-dir "$(DETECT_MIDDLE_DIR)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --epochs $(or $(DETECT_EPOCHS),40) \
+	  --batch-size $(or $(DETECT_BATCH_SIZE),64) \
+	  --device "$(or $(DEVICE),cpu)" \
+	  --lr "$(or $(SENTSEQ_KEEP_LR),3e-4)" \
+	  --seed "$(or $(SEED),0)" \
+	  $(if $(MAX_TRAIN),--max-train $(MAX_TRAIN),) \
+	  $(if $(MAX_VALID),--max-valid $(MAX_VALID),) \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),)
+
+build-section-middle-detect-image:
+	bash scripts/build_push_section_middle_detect_image.sh
+
+section-middle-detect-cd:
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/train_pref_detect.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-file "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" \
+	  --eval-file "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" \
+	  --output-dir "$(DETECT_CD_MIDDLE_DIR)" \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --epochs $(or $(DETECT_EPOCHS),40) \
+	  --batch-size $(or $(DETECT_CD_BATCH_SIZE),32) \
+	  --device "$(or $(DEVICE),cpu)" \
+	  --lr "$(or $(SENTSEQ_KEEP_LR),3e-4)" \
+	  --seed "$(or $(SEED),0)" \
+	  --composer-over-draft \
+	  $(if $(MAX_TRAIN),--max-train $(MAX_TRAIN),) \
+	  $(if $(MAX_VALID),--max-valid $(MAX_VALID),) \
+	  $(if $(SENTSEQ_D_MODEL),--d-model $(SENTSEQ_D_MODEL),) \
+	  $(if $(SENTSEQ_NUM_LAYERS),--num-layers $(SENTSEQ_NUM_LAYERS),) \
+	  $(if $(SENTSEQ_MAX_SENTS),--max-sents $(SENTSEQ_MAX_SENTS),)
+
+build-section-middle-detect-cd-image:
+	bash scripts/build_push_section_middle_detect_cd_image.sh
+
 
 freeze-8d-items:
 	$(PYTHON) scripts/freeze_8d_items.py
