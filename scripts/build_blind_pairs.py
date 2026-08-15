@@ -103,7 +103,7 @@ def main() -> None:
   )
   parser.add_argument(
     "--primary-model",
-    default="outputs/pref-sentseq-keep",
+    default="outputs/pref-sentseq-section-triples",
     help="サンプル選抜に使う評価器。無ければ先頭サンプル",
   )
   args = parser.parse_args()

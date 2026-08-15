@@ -13,7 +13,7 @@ alwaysApply: true
 - `outputs/pref-static`（旧データ由来のままなら同様）
 - 上記を既定にした `make edit-sft-score` / `make hard-eval-score` / `make rank` などの実行結果を、現行の成否判断に使わない
 
-Web / revise / rank の既定は、主評価器 `outputs/pref-sentseq-keep`、ゲート `outputs/pref-bt-keep`。
+Web / revise / rank の既定は、主評価器 `outputs/pref-sentseq-section-triples`、ゲート `outputs/pref-bt-keep`。
 
 今日までに出した LoRA 評価の `score_report*.md`（旧採点器によるもの）も、現行の判断根拠にしない。
 

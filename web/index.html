@@ -174,7 +174,10 @@
   <header>
     <h1>日本語推敲を採点する君</h1>
     <p class="lead">下書きを基準に、推敲がどれだけ「良く」なったかをマージン（点差）で測ります。
-       良さの基準は、人間（<a href="https://github.com/k16shikano" target="_blank" rel="noopener noreferrer">鹿野</a>）による推敲例 651 ペアから算出しています（したがって絶対的な基準ではありません）。</p>
+       ここでの良さは、人間（<a href="https://github.com/k16shikano" target="_blank" rel="noopener noreferrer">鹿野</a>）の推敲への近さです。
+       点は、その人の節の推敲で学習した評価器が出します。
+       合格ラインと分布の目盛りは、学習に使っていない節の推敲 50 件から出しています。
+       絶対的な文章の良し悪しではありません。</p>
   </header>
 
   <aside class="notices" aria-label="利用上の注意">
@@ -217,7 +220,7 @@
 
   <div class="cards">
     <div class="card" id="card-primary" style="display:none">
-      <h2>全体の質（pref-sentseq-keep）</h2>
+      <h2>全体の質（pref-sentseq-section-triples）</h2>
       <div class="model" id="primary-model"></div>
       <div class="margin-row">
         <span class="margin-value" id="primary-margin"></span>

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """合格閾値の較正: 人間編集が下書きから稼ぐマージンの分布を測る。
 
-検証セットの「下書き → 人間編集」ペアを主モデル（pref-sentseq-keep）とゲート
+検証セットの「下書き → 人間編集」ペアを主モデル（pref-sentseq-section-triples）とゲート
 （pref-bt-keep）で採点し、2 種類のマージン分布（パーセンタイル）を出す。
 
 - pair 基準: s(source_text, 人間編集) - s(source_text, 下書き)。
@@ -74,7 +74,7 @@ def margins_for_model(model_dir: Path, rows: list[dict]) -> dict:
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--pairs", default="data/pref_keep_split_section/valid.jsonl")
-  parser.add_argument("--primary-model", default="outputs/pref-sentseq-keep")
+  parser.add_argument("--primary-model", default="outputs/pref-sentseq-section-triples")
   parser.add_argument("--gate-model", default="outputs/pref-bt-keep")
   parser.add_argument("--out", default="outputs/acceptance_margin_calibration.json")
   args = parser.parse_args()
