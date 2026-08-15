@@ -1,6 +1,6 @@
 # ja-tech-edit-score
 
-現行の工程は [docs/PLAN.md](docs/PLAN.md)。入口は `make help`。使うスクリプトは `scripts/`、探索用の旧スクリプトは `scripts-old/`。
+現行の実験計画は [docs/PLAN.md](docs/PLAN.md)。何をしたくて何をやっているかは [BRIEF.md](BRIEF.md)。入口は `make help`。使うスクリプトは `scripts/`、探索用の旧スクリプトは `scripts-old/`。
 
 日本語技術文書の **選好評価モデル**
 
@@ -61,7 +61,7 @@ make data \
 
 ## 選好評価モデルの再学習
 
-現行は、レビュー済みの推敲前後ペアから作った分割で、文列型と Bradley-Terry 型を学び直す（`docs/PLAN.md` 工程 3）。
+現行は、レビュー済みの推敲前後ペアから作った分割で、文列型と Bradley-Terry 型を学び直す。
 
 ```bash
 make train-sentseq-keep-pairsplit
@@ -126,7 +126,9 @@ make daemon-stop  # 停止
 
 | ファイル | 内容 |
 |----------|------|
-| [docs/PLAN.md](docs/PLAN.md) | 現行の実験計画 |
+| [BRIEF.md](BRIEF.md) | 何をしたくて何をやっているか |
+| [docs/PLAN.md](docs/PLAN.md) | いまの手順とこのあと |
+| [docs/DATA.md](docs/DATA.md) | 学習データの作り方 |
 | [docs-old/WORKFLOW.md](docs-old/WORKFLOW.md) | 章推敲の手順（旧） |
 | [docs-old/SFT-DPO.md](docs-old/SFT-DPO.md) | 生成モデル向け SFT / DPO 構想メモ（旧） |
 | [data/README.md](data/README.md) | 学習データディレクトリの説明 |

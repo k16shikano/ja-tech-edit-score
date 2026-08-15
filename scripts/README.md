@@ -15,35 +15,31 @@
 - 学習: `train_edit_sft.py`、`dok_edit_sft.sh`
 - 生成: `generate_edit_sft.py`、`dok_edit_sft_eval.sh`、`generation_integrity.py`
 
-## ブラインド判定（工程 5–7）
+## ブラインド判定
 
 - `select_blind_items.py`、`build_blind_pairs.py`、`blind_judge_server.py`、`analyze_blind_judgments.py`
+- B の検証 50 件（人間の推敲対 Composer）: `build_pref_valid_gold_vs_composer_pairs.py`（`make pref-valid-blind-judge`）。集計は `eval_pref_valid50_gold_vs_composer.py`
 
-## 質の評価器の現行教師（工程 8-mid）
+## 教師データ B と評価器
 
-同じ下書きの三つ組み（人間の推敲 ＞ Composer 推敲 ＞ 下書き）。人が付けるのは劣化の有無だけ。
+同じ下書きの三つ組み。人が付けるのは劣化の有無だけ。
 
 - `generate_section_composer_revisions.py`、`middle_degrade_server.py`、`build_section_triples.py`
-- 学び直し: `train_pref_sentseq.py`（`make build-section-middle-sentseq-image`。出力は `outputs/pref-sentseq-section-triples`）
+- 文列型: `train_pref_sentseq.py`（出力は `outputs/pref-sentseq-section-triples`）
+- InfoNCE: `train_pref_nce.py`（`make build-section-middle-nce-image`。出力は `outputs/pref-nce-section`）。採点は `pref_nce_runtime.py`
+- 人間検出: `train_pref_detect.py`（`make build-section-middle-detect-image`。出力は `outputs/pref-detect-section`）。採点は文列型と同じ `pref_sentseq_runtime.py`
+- 検出に Composer 対下書きの項を足す: 同じ `train_pref_detect.py` に `--composer-over-draft`（`make build-section-middle-detect-cd-image`。出力は `outputs/pref-detect-cd-section`）
 
-## 段階 1 から 7 の評価器
-
-検証 50 件で人間の推敲を最上に置く評価器を、段階を書いた順に学ぶ。
+## 一対採点の継続学習（実施済み）
 
 - 学習: `train_pref_multigranular.py`、`run_pref_multigranular_stages.py`、`dok_pref_multigranular.sh`
 - 採点: `eval_pref_multigranular.py`、`pref_multigranular_runtime.py`
-- 人手判定の下書き固定: `freeze_8d_items.py`
+- 独立人手判定の下書き固定: `freeze_8d_items.py`
 
-## 既存の文列型・Bradley-Terry 型（工程 3 で学び直したもの）
+## 文列型・Bradley-Terry 型
 
-下書き対人間の推敲だけで学習した評価器。Web / 順位付けの既定。質の三つ組み学習の対象ではない。
+判定 Web / 順位付けの既定の主評価器は `outputs/pref-sentseq-section-triples`。ゲートは `outputs/pref-bt-keep`。
 
 - `train_pref_sentseq.py`、`train_pref_bt.py`、`pref_scorer.py`、`score_server.py`
-
-## 実験済み（質の教師には使わない）
-
-工程 6 の 360 件の相対選択で文列型を学んだ実験。
-
-- `train_generated_pref_sentseq.py`、`build_generated_pref_data.py`
 
 探索用の旧スクリプトは `scripts-old/`。
