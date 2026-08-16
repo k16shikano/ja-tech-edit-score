@@ -10,6 +10,8 @@
 
 採点 Web / `make revise` / `make rank` の主評価器は `outputs/pref-sentseq-section-triples`。ゲートは `outputs/pref-bt-keep`。合格ラインは節 keep 検証 50 件の self 基準中央値 3.4。
 
+スカラー仮説の検査は、評価用データ C から 10 件、下書きと未選抜 2 本の総当たり 30 対を人が付けた。入口は `make analyze-scalar-transitivity`。作り方は [DATA.md](DATA.md)。問いと採否の定義は BRIEF。
+
 ## 評価器
 
 目標は BRIEF のとおり。書き換えが、学習した人間の推敲に近いほど高い点を返す。
@@ -34,6 +36,11 @@
 
 人間の推敲を 1、下書きと Composer を 0 とする検出も、文列型の点の上で学んだ。検証件数は BRIEF の pref-detect-section。
 その検出に、Composer の点が下書きより高くなる項を足した学習は BRIEF の pref-detect-cd-section。
+
+### スカラー仮説の検査
+
+BRIEF のとおり、一本のスカラーで表せること自体を、A1 のあと B、および A1 と B の同時学習より先または並行して調べる。
+手順は [DATA.md](DATA.md) の「スカラー仮説の検査」。
 
 ### 独立した人手判定
 

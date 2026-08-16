@@ -53,6 +53,29 @@ make select-blind-items
 成果物は `data/blind_eval/items.jsonl`（下書きと人間の推敲）。
 生成は BRIEF の評価用データ C。判定ペアは `make build-blind-pairs`、判定は `make blind-judge`。
 
+## スカラー仮説の検査（C から 10 件）
+
+評価用データ C の 60 件から 10 件を乱択する。乱択のシードは 42。
+各件の候補は下書き 1 本と、SFT アダプタの 8 本のうち当時の評価器が最高点を付けた 1 本を除いた 2 本である。
+総当たりは件あたり 3 対、全体で 30 対である。
+問いは、左右のどちらが自分の推敲に近いかである。同等と比較できないを許す。
+比較できないは同程度ではない。
+比較できない対がある件は、推移的とも循環とも数えない。
+人間の推敲本文は出さない。評価器が選んだ文は出さない。
+下書きは文脈として出し、候補の一方にもなりうる。
+10 件は循環が出るかの初回診断であり、60 件での割合の推定ではない。
+
+```text
+make scalar-transitivity-pairs
+make scalar-transitivity-judge
+make analyze-scalar-transitivity
+```
+
+成果物は `data/blind_eval/pairs_scalar_transitivity.jsonl` と `judgments_scalar_transitivity.jsonl`。
+手順は `data/blind_eval/scalar_transitivity_protocol.json`。
+集計は `data/blind_eval/scalar_transitivity_analysis.json`。
+判定 Web はポート 8325、ホストは `0.0.0.0`。
+
 ## 教師データ B
 
 A2 の下書き 379 件のそれぞれに、生成器の SFT と同じ指示文で Composer（`composer-2.5`）が推敲を 1 本出す。人間の推敲はプロンプトに見せない。

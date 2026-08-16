@@ -19,6 +19,7 @@
 
 - `select_blind_items.py`、`build_blind_pairs.py`、`blind_judge_server.py`、`analyze_blind_judgments.py`
 - B の検証 50 件（人間の推敲対 Composer）: `build_pref_valid_gold_vs_composer_pairs.py`（`make pref-valid-blind-judge`）。集計は `eval_pref_valid50_gold_vs_composer.py`
+- スカラー仮説の検査（C から 10 件、下書きと未選抜 2 本の総当たり）: `build_scalar_transitivity_pairs.py`、`analyze_scalar_transitivity.py`（`make scalar-transitivity-judge`）
 
 ## 教師データ B と評価器
 

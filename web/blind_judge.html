@@ -182,6 +182,16 @@
       font: inherit;
       background: var(--card);
     }
+    #incomp-reason {
+      display: block;
+      width: 100%;
+      margin-top: 0.4rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.5rem 0.7rem;
+      font: inherit;
+      background: var(--card);
+    }
     #done-msg {
       display: none;
       margin-top: 2rem;
@@ -200,8 +210,9 @@
 <body>
   <header>
     <h1>ブラインド判定（出所は表示しない）</h1>
+    <p id="prompt" class="legend" style="margin:0.4rem 0 0"></p>
     <div id="progress">読込中…</div>
-    <div id="ui-ver" style="font-size:0.75rem;color:#8a857c">UI v7</div>
+    <div id="ui-ver" style="font-size:0.75rem;color:#8a857c">UI v9</div>
   </header>
   <main>
     <div id="judge-view">
@@ -241,12 +252,19 @@
         <label><input type="checkbox" id="noedit-a"> A は下書きとの事実上の差分なし</label>
         <label><input type="checkbox" id="noedit-b"> B は下書きとの事実上の差分なし</label>
       </div>
+      <div id="incomp-wrap" style="display:none;margin-top:1rem">
+        <label class="label" for="incomp-reason">比較できないときの理由</label>
+        <select id="incomp-reason">
+          <option value="">（比較できないときだけ選ぶ）</option>
+        </select>
+      </div>
       <label class="label" for="comment" style="display:block;margin-top:1rem">コメント（任意）</label>
       <textarea id="comment" placeholder="気になった点があれば"></textarea>
       <div class="actions">
         <button class="primary" id="btn-a">A のほうがまし</button>
         <button class="primary" id="btn-b">B のほうがまし</button>
         <button id="btn-tie">同等</button>
+        <button id="btn-incomp" style="display:none">比較できない</button>
       </div>
       <p id="err"></p>
     </div>
@@ -345,6 +363,31 @@
       const st = await res.json();
       progressEl.textContent =
         `残り ${st.remaining} / 全 ${st.total}（完了 ${st.done}）`;
+      const promptEl = document.getElementById("prompt");
+      if (promptEl) promptEl.textContent = st.question || "";
+      if (st.choice_a) document.getElementById("btn-a").textContent = st.choice_a;
+      if (st.choice_b) document.getElementById("btn-b").textContent = st.choice_b;
+      if (st.choice_tie) document.getElementById("btn-tie").textContent = st.choice_tie;
+      const incompBtn = document.getElementById("btn-incomp");
+      const incompWrap = document.getElementById("incomp-wrap");
+      const incompSel = document.getElementById("incomp-reason");
+      const showIncomp = Boolean(st.choice_incomparable);
+      if (incompBtn) {
+        incompBtn.style.display = showIncomp ? "" : "none";
+        if (st.choice_incomparable) incompBtn.textContent = st.choice_incomparable;
+      }
+      if (incompWrap) incompWrap.style.display = showIncomp ? "" : "none";
+      if (showIncomp && incompSel && st.incomparable_reasons) {
+        const keep = incompSel.value;
+        incompSel.innerHTML = '<option value="">（比較できないときだけ選ぶ）</option>';
+        for (const r of st.incomparable_reasons) {
+          const opt = document.createElement("option");
+          opt.value = r.id;
+          opt.textContent = r.label;
+          incompSel.appendChild(opt);
+        }
+        if (keep) incompSel.value = keep;
+      }
     }
 
     async function loadNext() {
@@ -353,6 +396,8 @@
       for (const id of ["flag-a", "flag-b", "noedit-a", "noedit-b"]) {
         document.getElementById(id).checked = false;
       }
+      const incompSel = document.getElementById("incomp-reason");
+      if (incompSel) incompSel.value = "";
       await refreshStatus();
       const res = await fetch("/api/next");
       const data = await res.json();
@@ -376,6 +421,12 @@
 
     async function submit(choice) {
       if (!currentPairId) return;
+      const incompSel = document.getElementById("incomp-reason");
+      const reason = incompSel ? incompSel.value : "";
+      if (choice === "incomparable" && !reason) {
+        errEl.textContent = "比較できないときは理由を選ぶ";
+        return;
+      }
       setBusy(true);
       errEl.textContent = "";
       try {
@@ -390,6 +441,7 @@
             b_broken: document.getElementById("flag-b").checked,
             a_noedit: document.getElementById("noedit-a").checked,
             b_noedit: document.getElementById("noedit-b").checked,
+            incomparable_reason: choice === "incomparable" ? reason : "",
           }),
         });
         if (!res.ok) {
@@ -405,14 +457,16 @@
     }
 
     function setBusy(busy) {
-      for (const id of ["btn-a", "btn-b", "btn-tie"]) {
-        document.getElementById(id).disabled = busy;
+      for (const id of ["btn-a", "btn-b", "btn-tie", "btn-incomp"]) {
+        const el = document.getElementById(id);
+        if (el) el.disabled = busy;
       }
     }
 
     document.getElementById("btn-a").onclick = () => submit("a");
     document.getElementById("btn-b").onclick = () => submit("b");
     document.getElementById("btn-tie").onclick = () => submit("tie");
+    document.getElementById("btn-incomp").onclick = () => submit("incomparable");
 
     for (const toggle of document.querySelectorAll(".view-toggle")) {
       const side = toggle.dataset.side;

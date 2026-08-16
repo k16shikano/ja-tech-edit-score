@@ -22,14 +22,25 @@ DEFAULT_PAIRS = ROOT / "data" / "blind_eval" / "pairs.jsonl"
 DEFAULT_JUDGMENTS = ROOT / "data" / "blind_eval" / "judgments.jsonl"
 
 
+INCOMPARABLE_REASONS = (
+  ("both_worse", "どちらも下書きより劣化している"),
+  ("noedit_vs_worse", "片方は下書きと差分がなく、もう片方は劣化している"),
+  ("broken_vs_worse", "片方に致命的な欠陥があり、もう片方は劣化している"),
+  ("veto", "全体では片方のほうがよいが、許容できない編集がある"),
+  ("other", "その他（コメントへ）"),
+)
+INCOMPARABLE_REASON_IDS = {k for k, _ in INCOMPARABLE_REASONS}
+
+
 class JudgeBody(BaseModel):
   pair_id: str
-  choice: str = Field(description="a | b | tie")
+  choice: str = Field(description="a | b | tie | incomparable")
   comment: str = ""
   a_broken: bool = Field(default=False, description="A に致命的な欠落・破壊がある")
   b_broken: bool = Field(default=False, description="B に致命的な欠落・破壊がある")
   a_noedit: bool = Field(default=False, description="A は下書きとの事実上の差分なし")
   b_noedit: bool = Field(default=False, description="B は下書きとの事実上の差分なし")
+  incomparable_reason: str = ""
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -49,11 +60,26 @@ def judged_ids(path: Path) -> set[str]:
   return {str(r.get("pair_id") or "") for r in load_jsonl(path) if r.get("pair_id")}
 
 
-def create_app(*, pairs_path: Path, judgments_path: Path) -> FastAPI:
+def create_app(
+  *,
+  pairs_path: Path,
+  judgments_path: Path,
+  question: str = "",
+  choice_a: str = "A のほうがまし",
+  choice_b: str = "B のほうがまし",
+  choice_tie: str = "同等",
+  choice_incomparable: str = "",
+) -> FastAPI:
   app = FastAPI(title="blind-judge")
   pairs = load_jsonl(pairs_path)
   pairs.sort(key=lambda r: int(r.get("order") or 0))
   by_id = {str(p["pair_id"]): p for p in pairs}
+  if not question:
+    for p in pairs:
+      q = str(p.get("question") or "")
+      if q:
+        question = q
+        break
 
   @app.get("/")
   def index():
@@ -74,6 +100,14 @@ def create_app(*, pairs_path: Path, judgments_path: Path) -> FastAPI:
       "remaining": len(pending),
       "pairs_path": str(pairs_path),
       "judgments_path": str(judgments_path),
+      "question": question,
+      "choice_a": choice_a,
+      "choice_b": choice_b,
+      "choice_tie": choice_tie,
+      "choice_incomparable": choice_incomparable,
+      "incomparable_reasons": [
+        {"id": k, "label": lab} for k, lab in INCOMPARABLE_REASONS
+      ],
     }
 
   @app.get("/api/next")
@@ -98,8 +132,14 @@ def create_app(*, pairs_path: Path, judgments_path: Path) -> FastAPI:
 
   @app.post("/api/judge")
   def judge(body: JudgeBody):
-    if body.choice not in ("a", "b", "tie"):
-      raise HTTPException(400, "choice must be a|b|tie")
+    if body.choice not in ("a", "b", "tie", "incomparable"):
+      raise HTTPException(400, "choice must be a|b|tie|incomparable")
+    reason = str(body.incomparable_reason or "")
+    if body.choice == "incomparable":
+      if reason not in INCOMPARABLE_REASON_IDS:
+        raise HTTPException(400, "incomparable requires a reason")
+    else:
+      reason = ""
     p = by_id.get(body.pair_id)
     if not p:
       raise HTTPException(404, f"unknown pair_id {body.pair_id}")
@@ -117,6 +157,7 @@ def create_app(*, pairs_path: Path, judgments_path: Path) -> FastAPI:
       "b_broken": body.b_broken,
       "a_noedit": body.a_noedit,
       "b_noedit": body.b_noedit,
+      "incomparable_reason": reason,
       "a_source": p.get("a_source"),
       "b_source": p.get("b_source"),
       "swapped": p.get("swapped"),
@@ -134,6 +175,11 @@ def main() -> None:
   parser.add_argument("--judgments", default=str(DEFAULT_JUDGMENTS))
   parser.add_argument("--host", default="0.0.0.0")
   parser.add_argument("--port", type=int, default=8320)
+  parser.add_argument("--question", default="")
+  parser.add_argument("--choice-a", default="A のほうがまし")
+  parser.add_argument("--choice-b", default="B のほうがまし")
+  parser.add_argument("--choice-tie", default="同等")
+  parser.add_argument("--choice-incomparable", default="")
   args = parser.parse_args()
   if args.host in ("127.0.0.1", "localhost", "::1"):
     raise SystemExit(
@@ -147,7 +193,15 @@ def main() -> None:
       "(比較 6 は生成なしでも作れる。1〜5 は生成後)"
     )
 
-  app = create_app(pairs_path=pairs_path, judgments_path=Path(args.judgments))
+  app = create_app(
+    pairs_path=pairs_path,
+    judgments_path=Path(args.judgments),
+    question=args.question,
+    choice_a=args.choice_a,
+    choice_b=args.choice_b,
+    choice_tie=args.choice_tie,
+    choice_incomparable=args.choice_incomparable,
+  )
   print(
     f"blind-judge http://{args.host}:{args.port}/ "
     f"pairs={pairs_path} judgments={args.judgments}",

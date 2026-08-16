@@ -37,7 +37,7 @@ SENTSEQ_BATCH_SIZE ?= 64
 MULTIGRANULAR_STAGES ?= 1,2,3,4,5,6,7
 MULTIGRANULAR_SEEDS ?= 0
 
-.PHONY: help venv data mine-sections pairsplit-data pref-keep-data train-bt-keep train-bt-keep-pairsplit train-sentseq-keep train-sentseq-keep-pairsplit build-pref-keep-image build-generated-pref-sentseq-image build-section-middle-sentseq-image build-setwise-section-triples-image build-setwise-section-human-top-image build-section-middle-nce-image section-middle-nce build-section-middle-detect-image section-middle-detect build-section-middle-detect-cd-image section-middle-detect-cd build-pref-multigranular-image section-middle-setwise section-middle-setwise-human-top hard-eval-setwise pref-multigranular-smoke pref-multigranular freeze-8d-items build-serve-image select-blind-items build-blind-pairs blind-judge pref-valid-blind-pairs pref-valid-blind-judge analyze-blind-judgments generated-pref-data generated-pref-sentseq-smoke generated-pref-sentseq-cv section-middle-gen section-middle-judge section-middle-triples section-middle-sentseq edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk score-bt rank converge check calibrate-margins revise serve install-bin install-skills daemon daemon-stop test clean-model
+.PHONY: help venv data mine-sections pairsplit-data pref-keep-data train-bt-keep train-bt-keep-pairsplit train-sentseq-keep train-sentseq-keep-pairsplit build-pref-keep-image build-generated-pref-sentseq-image build-section-middle-sentseq-image build-setwise-section-triples-image build-setwise-section-human-top-image build-section-middle-nce-image section-middle-nce build-section-middle-detect-image section-middle-detect build-section-middle-detect-cd-image section-middle-detect-cd build-pref-multigranular-image section-middle-setwise section-middle-setwise-human-top hard-eval-setwise pref-multigranular-smoke pref-multigranular freeze-8d-items build-serve-image select-blind-items build-blind-pairs blind-judge pref-valid-blind-pairs pref-valid-blind-judge scalar-transitivity-pairs scalar-transitivity-judge analyze-scalar-transitivity analyze-blind-judgments generated-pref-data generated-pref-sentseq-smoke generated-pref-sentseq-cv section-middle-gen section-middle-judge section-middle-triples section-middle-sentseq edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk score-bt rank converge check calibrate-margins revise serve install-bin install-skills daemon daemon-stop test clean-model
 
 help:
 	@echo "現行（docs/PLAN.md / BRIEF.md）:"
@@ -51,6 +51,9 @@ help:
 	@echo "  make freeze-8d-items                      # 独立人手判定の下書き 40 件を固定"
 	@echo "  make pref-valid-blind-pairs               # B検証50 人間vs Composer 対"
 	@echo "  make pref-valid-blind-judge               # B検証50 ブラインド判定 Web"
+	@echo "  make scalar-transitivity-pairs            # Cから10件、下書き+未選抜2本の総当たり"
+	@echo "  make scalar-transitivity-judge            # スカラー仮説のブラインド判定 Web"
+	@echo "  make analyze-scalar-transitivity          # 件ごとの推移性を集計"
 	@echo "  make test"
 	@echo ""
 	@echo "実施済みの入口:"
@@ -355,6 +358,39 @@ pref-valid-blind-judge:
 	  --judgments "$(DATA_DIR)/blind_eval/judgments_pref_valid_gold_vs_composer.jsonl" \
 	  --host $(or $(HOST),0.0.0.0) \
 	  --port $(or $(PORT),8324)
+
+scalar-transitivity-pairs:
+	@test -s "$(DATA_DIR)/blind_eval/items.jsonl" || (echo "missing data/blind_eval/items.jsonl" && exit 1)
+	@test -s "outputs/edit-sft-eval-v3/adapter_samples.jsonl" || (echo "missing adapter_samples.jsonl" && exit 1)
+	$(PYTHON) scripts/build_scalar_transitivity_pairs.py \
+	  --items "$(DATA_DIR)/blind_eval/items.jsonl" \
+	  --adapter-samples "outputs/edit-sft-eval-v3/adapter_samples.jsonl" \
+	  --primary-model "$(SENTSEQ_BEST_DIR)" \
+	  --out "$(DATA_DIR)/blind_eval/pairs_scalar_transitivity.jsonl" \
+	  --protocol-out "$(DATA_DIR)/blind_eval/scalar_transitivity_protocol.json" \
+	  --n-items $(or $(N_ITEMS),10) \
+	  --n-unselected $(or $(N_UNSELECTED),2) \
+	  --seed $(or $(SEED),42)
+
+scalar-transitivity-judge:
+	@test -s "$(DATA_DIR)/blind_eval/pairs_scalar_transitivity.jsonl" || (echo "run make scalar-transitivity-pairs first" && exit 1)
+	$(PYTHON) scripts/blind_judge_server.py \
+	  --pairs "$(DATA_DIR)/blind_eval/pairs_scalar_transitivity.jsonl" \
+	  --judgments "$(DATA_DIR)/blind_eval/judgments_scalar_transitivity.jsonl" \
+	  --question "A と B のどちらが、自分の推敲に近いか" \
+	  --choice-a "A のほうが近い" \
+	  --choice-b "B のほうが近い" \
+	  --choice-tie "同程度" \
+	  --choice-incomparable "比較できない" \
+	  --host $(or $(HOST),0.0.0.0) \
+	  --port $(or $(PORT),8325)
+
+analyze-scalar-transitivity:
+	@test -s "$(DATA_DIR)/blind_eval/pairs_scalar_transitivity.jsonl" || (echo "run make scalar-transitivity-pairs first" && exit 1)
+	$(PYTHON) scripts/analyze_scalar_transitivity.py \
+	  --pairs "$(DATA_DIR)/blind_eval/pairs_scalar_transitivity.jsonl" \
+	  --judgments "$(DATA_DIR)/blind_eval/judgments_scalar_transitivity.jsonl" \
+	  --out "$(DATA_DIR)/blind_eval/scalar_transitivity_analysis.json"
 
 GENERATED_PREF_DATA_DIR := $(DATA_DIR)/generated_pref_experiment
 GENERATED_PREF_OUTPUT_DIR := $(ROOT)outputs/generated-pref-sentseq
