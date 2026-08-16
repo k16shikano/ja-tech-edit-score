@@ -37,6 +37,10 @@
 人間の推敲を 1、下書きと Composer を 0 とする検出も、文列型の点の上で学んだ。検証件数は BRIEF の pref-detect-section。
 その検出に、Composer の点が下書きより高くなる項を足した学習は BRIEF の pref-detect-cd-section。
 
+### GPM（A1 と B）
+
+General Preference Model で、A1 の段落内推敲ペア（`data/pref_keep_split_hunk/`）と B の節三つ組み（`data/section_middle/pref_*.jsonl`）を同時に学ぶ。成果物は `outputs/pref-gpm-a1b/`。本学習は `make build-pref-gpm-image`、手元スモークは `make pref-gpm-smoke`。
+
 ### スカラー仮説の検査
 
 BRIEF のとおり、一本のスカラーで表せること自体を、A1 のあと B、および A1 と B の同時学習より先または並行して調べる。

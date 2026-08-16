@@ -21,6 +21,7 @@ SENTSEQ_MIDDLE_DIR := $(ROOT)outputs/pref-sentseq-section-triples
 SETWISE_MIDDLE_DIR := $(ROOT)outputs/pref-setwise-section-triples
 SETWISE_HUMAN_TOP_DIR := $(ROOT)outputs/pref-setwise-section-human-top
 NCE_MIDDLE_DIR := $(ROOT)outputs/pref-nce-section
+PREF_GPM_DIR := $(ROOT)outputs/pref-gpm-a1b
 DETECT_MIDDLE_DIR := $(ROOT)outputs/pref-detect-section
 DETECT_CD_MIDDLE_DIR := $(ROOT)outputs/pref-detect-cd-section
 
@@ -37,13 +38,15 @@ SENTSEQ_BATCH_SIZE ?= 64
 MULTIGRANULAR_STAGES ?= 1,2,3,4,5,6,7
 MULTIGRANULAR_SEEDS ?= 0
 
-.PHONY: help venv data mine-sections pairsplit-data pref-keep-data train-bt-keep train-bt-keep-pairsplit train-sentseq-keep train-sentseq-keep-pairsplit build-pref-keep-image build-generated-pref-sentseq-image build-section-middle-sentseq-image build-setwise-section-triples-image build-setwise-section-human-top-image build-section-middle-nce-image section-middle-nce build-section-middle-detect-image section-middle-detect build-section-middle-detect-cd-image section-middle-detect-cd build-pref-multigranular-image section-middle-setwise section-middle-setwise-human-top hard-eval-setwise pref-multigranular-smoke pref-multigranular freeze-8d-items build-serve-image select-blind-items build-blind-pairs blind-judge pref-valid-blind-pairs pref-valid-blind-judge scalar-transitivity-pairs scalar-transitivity-judge analyze-scalar-transitivity analyze-blind-judgments generated-pref-data generated-pref-sentseq-smoke generated-pref-sentseq-cv section-middle-gen section-middle-judge section-middle-triples section-middle-sentseq edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk score-bt rank converge check calibrate-margins revise serve install-bin install-skills daemon daemon-stop test clean-model
+.PHONY: help venv data mine-sections pairsplit-data pref-keep-data train-bt-keep train-bt-keep-pairsplit train-sentseq-keep train-sentseq-keep-pairsplit build-pref-keep-image build-generated-pref-sentseq-image build-section-middle-sentseq-image build-setwise-section-triples-image build-setwise-section-human-top-image build-section-middle-nce-image section-middle-nce build-section-middle-detect-image section-middle-detect build-section-middle-detect-cd-image section-middle-detect-cd build-pref-gpm-image pref-gpm-smoke build-pref-multigranular-image section-middle-setwise section-middle-setwise-human-top hard-eval-setwise pref-multigranular-smoke pref-multigranular freeze-8d-items build-serve-image select-blind-items build-blind-pairs blind-judge pref-valid-blind-pairs pref-valid-blind-judge scalar-transitivity-pairs scalar-transitivity-judge analyze-scalar-transitivity analyze-blind-judgments generated-pref-data generated-pref-sentseq-smoke generated-pref-sentseq-cv section-middle-gen section-middle-judge section-middle-triples section-middle-sentseq edit-sft-data edit-sft-review edit-sft-review-hunk edit-sft-review-section-extra edit-sft-export-keeps edit-sft-promote-reviewed edit-sft edit-sft-section-only edit-sft-hunk score-bt rank converge check calibrate-margins revise serve install-bin install-skills daemon daemon-stop test clean-model
 
 help:
 	@echo "現行（docs/PLAN.md / BRIEF.md）:"
 	@echo "  make venv"
 	@echo "  make section-middle-nce                   # InfoNCE 手元スモーク（DEVICE=cpu EPOCHS=1 等）"
 	@echo "  make build-section-middle-nce-image         # InfoNCE DOK"
+	@echo "  make pref-gpm-smoke                         # GPM 評価器の CPU スモーク（1 epoch）"
+	@echo "  make build-pref-gpm-image                   # GPM 評価器（A1＋B）の DOK イメージを build して push"
 	@echo "  make section-middle-detect               # 人間検出 手元スモーク（DEVICE=cpu EPOCHS=1 等）"
 	@echo "  make build-section-middle-detect-image     # 人間検出 DOK"
 	@echo "  make section-middle-detect-cd            # 検出+Composer対下書き 手元スモーク"
@@ -565,6 +568,37 @@ section-middle-nce:
 
 build-section-middle-nce-image:
 	bash scripts/build_push_section_middle_nce_image.sh
+
+pref-gpm-smoke:
+	@test -s "$(PREF_KEEP_SPLIT_HUNK)/train.jsonl" || (echo "run make pairsplit-data first" && exit 1)
+	@test -s "$(PREF_KEEP_SPLIT_HUNK)/valid.jsonl" || (echo "run make pairsplit-data first" && exit 1)
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	@test -s "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" || (echo "run make section-middle-triples first" && exit 1)
+	$(PYTHON) scripts/train_pref_gpm.py \
+	  --model "$(EMBED_MODEL)" \
+	  --train-hunk-file "$(PREF_KEEP_SPLIT_HUNK)/train.jsonl" \
+	  --train-triple-file "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" \
+	  --valid-hunk-file "$(PREF_KEEP_SPLIT_HUNK)/valid.jsonl" \
+	  --valid-triple-file "$(SECTION_MIDDLE_DIR)/pref_valid.jsonl" \
+	  --output-dir "$(PREF_GPM_DIR)-smoke" \
+	  --head-dim 4 \
+	  --head-hidden 0 \
+	  --truncate-dim $(TRUNCATE_DIM) \
+	  --text-prefix "$(TEXT_PREFIX)" \
+	  --max-seq-length $(or $(SENTSEQ_MAX_SEQ_LENGTH),256) \
+	  --encode-batch-size $(or $(ENCODE_BATCH_SIZE),64) \
+	  --d-model $(or $(GPM_D_MODEL),64) \
+	  --num-layers $(or $(GPM_NUM_LAYERS),1) \
+	  --max-sents $(or $(GPM_MAX_SENTS),16) \
+	  --batch-size $(or $(GPM_BATCH_SIZE),8) \
+	  --epochs $(or $(EPOCHS),1) \
+	  --lr "$(or $(SENTSEQ_KEEP_LR),3e-4)" \
+	  --weight-decay $(or $(WEIGHT_DECAY),1e-2) \
+	  --seed "$(or $(SEED),0)" \
+	  --device cpu
+
+build-pref-gpm-image:
+	bash scripts/build_push_pref_gpm_image.sh
 
 section-middle-detect:
 	@test -s "$(SECTION_MIDDLE_DIR)/pref_train.jsonl" || (echo "run make section-middle-triples first" && exit 1)

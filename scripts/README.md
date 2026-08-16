@@ -28,6 +28,7 @@
 - `generate_section_composer_revisions.py`、`middle_degrade_server.py`、`build_section_triples.py`
 - 文列型: `train_pref_sentseq.py`（出力は `outputs/pref-sentseq-section-triples`）
 - InfoNCE: `train_pref_nce.py`（`make build-section-middle-nce-image`。出力は `outputs/pref-nce-section`）。採点は `pref_nce_runtime.py`
+- GPM: `train_pref_gpm.py`（`make build-pref-gpm-image`。出力は `outputs/pref-gpm-a1b`）。採点は `pref_gpm_runtime.py`
 - 人間検出: `train_pref_detect.py`（`make build-section-middle-detect-image`。出力は `outputs/pref-detect-section`）。採点は文列型と同じ `pref_sentseq_runtime.py`
 - 検出に Composer 対下書きの項を足す: 同じ `train_pref_detect.py` に `--composer-over-draft`（`make build-section-middle-detect-cd-image`。出力は `outputs/pref-detect-cd-section`）
 
