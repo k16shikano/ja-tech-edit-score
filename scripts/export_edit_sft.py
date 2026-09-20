@@ -32,7 +32,7 @@ from markdown_sections import paragraph_count
 from mask_code_figures import mask_pair
 from steering_utils import strip_reference_block
 
-# 学習データと生成で同一の指示文を使う（docs/PLAN.md 工程 3）。
+# 学習データと生成で同一の指示文を使う。
 INSTRUCTION = (
   "次の下書きを、意味を保ったまま日本語の技術文書として推敲せよ。\n"
   "行頭の # で始まる見出しと、【図】・【コード】などの置き場所を示す要素は"

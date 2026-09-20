@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ブラインド人手判定（工程 6）の集計（工程 7）。
 
-pairs.jsonl と judgments.jsonl を結合し、PLAN.md の判定基準に沿って
+pairs.jsonl と judgments.jsonl を結合し、当時の判定基準に沿って
 推敲モデル・評価器の指標を出す。
 """
 from __future__ import annotations
@@ -517,7 +517,7 @@ def render_markdown(analysis: dict) -> str:
       "",
       "## 2. 用語",
       "",
-      "PLAN.md の用語表に加え、本集計で使う識別子を次に固定する。",
+      "本集計で使う識別子を次に固定する。",
       "",
       "**下書き**：判定対象節の推敲前原文。`items.jsonl` の `draft`、画面上の「文脈」、評価器採点時の `source` に使う。",
       "",
