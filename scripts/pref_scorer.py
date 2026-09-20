@@ -39,7 +39,7 @@ def detect_scorer_kind(model_dir: Path) -> str:
   return "bt"
 
 
-def load_scorer(model_dir: Path) -> LoadedScorer:
+def load_scorer(model_dir: Path, *, calibrate_draft_zero: bool = False) -> LoadedScorer:
   kind = detect_scorer_kind(model_dir)
   if kind == "ce":
     from pref_ce_runtime import load_ce_model, score_candidates_ce
@@ -58,12 +58,25 @@ def load_scorer(model_dir: Path) -> LoadedScorer:
       return score_candidates_nce(loaded, source, candidates, batch_size=batch_size)
 
   elif kind in ("sentseq", "detect"):
-    from pref_sentseq_runtime import load_sentseq_model, score_candidates_sentseq
+    from pref_sentseq_runtime import (
+      load_sentseq_model,
+      score_candidates_sentseq,
+      score_candidates_sentseq_delta,
+    )
 
     loaded = load_sentseq_model(model_dir)
 
-    def score(source: str, candidates: list[str], *, batch_size: int = 16) -> list[float]:
-      return score_candidates_sentseq(loaded, source, candidates, batch_size=batch_size)
+    if calibrate_draft_zero:
+
+      def score(source: str, candidates: list[str], *, batch_size: int = 16) -> list[float]:
+        return score_candidates_sentseq_delta(
+          loaded, source, candidates, batch_size=batch_size
+        )
+
+    else:
+
+      def score(source: str, candidates: list[str], *, batch_size: int = 16) -> list[float]:
+        return score_candidates_sentseq(loaded, source, candidates, batch_size=batch_size)
 
   else:
     from pref_bt_runtime import load_bt_model, score_candidates_bt

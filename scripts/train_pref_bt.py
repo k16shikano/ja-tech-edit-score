@@ -138,6 +138,16 @@ def resolve_device(name: str) -> str:
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--model", default="cl-nagoya/ruri-v3-30m")
+  parser.add_argument(
+    "--embed-backend",
+    choices=["sentence-transformers", "modernbert"],
+    default="sentence-transformers",
+  )
+  parser.add_argument(
+    "--modernbert-checkpoint",
+    default="",
+    help="D 学習済み checkpoint ディレクトリ。空なら --model の素の ModernBERT",
+  )
   parser.add_argument("--train-file", required=True, help="preference jsonl (swap 込み可)")
   parser.add_argument("--eval-file", required=True, help="preference jsonl")
   parser.add_argument("--output-dir", required=True)
@@ -159,18 +169,53 @@ def main() -> None:
 
   device = resolve_device(args.device)
   truncate_dim = normalize_truncate_dim(args.truncate_dim)
-  encoder = SentenceTransformer(args.model, device=device, truncate_dim=truncate_dim)
-  if args.max_seq_length > 0:
-    encoder.max_seq_length = args.max_seq_length
-
   all_rows = train_rows + eval_rows
-  text_to_embedding = encode_text_map(
-    encoder,
-    collect_unique_texts(all_rows),
-    batch_size=args.batch_size,
-    normalize_embeddings=True,
-    text_prefix=args.text_prefix,
-  )
+  unique_texts = collect_unique_texts(all_rows)
+  embed_backend = args.embed_backend
+  modernbert_checkpoint = str(args.modernbert_checkpoint or "").strip()
+  if embed_backend == "modernbert":
+    from modernbert_embed import build_encoder, encode_text_map as encode_modernbert_map
+
+    mb_device = torch.device(device)
+    mb_encoder = build_encoder(
+      base_model=args.model,
+      checkpoint_dir=modernbert_checkpoint,
+      max_seq_length=args.max_seq_length if args.max_seq_length > 0 else 512,
+      device=mb_device,
+    )
+    text_to_embedding = encode_modernbert_map(
+      mb_encoder,
+      unique_texts,
+      batch_size=args.batch_size,
+      show_progress_bar=True,
+    )
+    embedding_model_name = (
+      modernbert_checkpoint if modernbert_checkpoint else args.model
+    )
+    artifact_embed = {
+      "embed_backend": "modernbert",
+      "modernbert_base_model": args.model,
+      "modernbert_checkpoint": modernbert_checkpoint or None,
+      "truncate_dim": None,
+      "normalize_embeddings": True,
+    }
+  else:
+    encoder = SentenceTransformer(args.model, device=device, truncate_dim=truncate_dim)
+    if args.max_seq_length > 0:
+      encoder.max_seq_length = args.max_seq_length
+    text_to_embedding = encode_text_map(
+      encoder,
+      unique_texts,
+      batch_size=args.batch_size,
+      normalize_embeddings=True,
+      text_prefix=args.text_prefix,
+    )
+    embedding_model_name = args.model
+    artifact_embed = {
+      "embed_backend": "sentence-transformers",
+      "truncate_dim": truncate_dim,
+      "normalize_embeddings": True,
+    }
 
   x_train_w = build_pointwise_matrix(train_rows, text_to_embedding, key="candidate_a")
   x_train_l = build_pointwise_matrix(train_rows, text_to_embedding, key="candidate_b")
@@ -194,18 +239,19 @@ def main() -> None:
     "head_state_dict": {k: v.detach().cpu() for k, v in head.state_dict().items()},
     "scaler": scaler,
     "input_dim": int(x_train_w.shape[1]),
-    "sentence_model_name": args.model,
-    "truncate_dim": truncate_dim,
-    "text_prefix": args.text_prefix,
+    "sentence_model_name": embedding_model_name,
+    "text_prefix": args.text_prefix if embed_backend == "sentence-transformers" else "",
     "max_seq_length": args.max_seq_length if args.max_seq_length > 0 else None,
-    "normalize_embeddings": True,
     "feature_version": "source-cand-pointwise-v1",
+    **artifact_embed,
   }
   dump(artifact, output_dir / "model.joblib")
 
   metrics = {
-    "embedding_model": args.model,
-    "text_prefix": args.text_prefix,
+    "embedding_model": embedding_model_name,
+    "embed_backend": embed_backend,
+    "modernbert_checkpoint": modernbert_checkpoint or None,
+    "text_prefix": args.text_prefix if embed_backend == "sentence-transformers" else "",
     "max_seq_length": artifact["max_seq_length"],
     "device": device,
     "train_pairs": len(train_rows),

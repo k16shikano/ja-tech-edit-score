@@ -9,12 +9,10 @@ from pathlib import Path
 import numpy as np
 import torch
 from joblib import load
-from sentence_transformers import SentenceTransformer
 
+from modernbert_embed import encode_with_embedder, load_embedder_from_config
 from pref_static_utils import (
   assemble_pointwise_feature_vector,
-  encode_texts,
-  load_sentence_model_from_artifact,
 )
 from train_pref_bt import LinearRewardHead
 
@@ -23,27 +21,30 @@ from train_pref_bt import LinearRewardHead
 class LoadedBtModel:
   head: LinearRewardHead
   scaler: object
-  sentence_model: SentenceTransformer
+  embedder: object
+  embed_backend: str
   normalize_embeddings: bool
   text_prefix: str
   model_dir: str
 
 
-def load_bt_model(model_dir: Path) -> LoadedBtModel:
+def load_bt_model(model_dir: Path, *, device: str = "") -> LoadedBtModel:
   artifact_path = model_dir / "model.joblib"
   if not artifact_path.is_file():
     raise FileNotFoundError(f"model not found: {artifact_path}")
   artifact = load(artifact_path)
   if artifact.get("kind") != "pref-bt":
     raise ValueError(f"not a pref-bt artifact: {artifact_path}")
+  resolved = device or ("cuda" if torch.cuda.is_available() else "cpu")
   head = LinearRewardHead(int(artifact["input_dim"]))
   head.load_state_dict(artifact["head_state_dict"])
   head.eval()
   return LoadedBtModel(
     head=head,
     scaler=artifact["scaler"],
-    sentence_model=load_sentence_model_from_artifact(artifact, device="cpu"),
-    normalize_embeddings=bool(artifact["normalize_embeddings"]),
+    embedder=load_embedder_from_config(artifact, device=resolved),
+    embed_backend=str(artifact.get("embed_backend", "sentence-transformers")),
+    normalize_embeddings=bool(artifact.get("normalize_embeddings", True)),
     text_prefix=str(artifact.get("text_prefix", "")),
     model_dir=str(model_dir),
   )
@@ -65,8 +66,8 @@ def score_candidates_bt(
     if text not in seen:
       seen.add(text)
       unique.append(text)
-  embeddings = encode_texts(
-    loaded.sentence_model,
+  embeddings = encode_with_embedder(
+    loaded.embedder,
     unique,
     batch_size=batch_size,
     normalize_embeddings=loaded.normalize_embeddings,

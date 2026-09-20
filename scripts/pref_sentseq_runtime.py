@@ -8,9 +8,8 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from sentence_transformers import SentenceTransformer
 
-from pref_static_utils import encode_texts, load_sentence_model_from_artifact
+from modernbert_embed import encode_with_embedder, load_embedder_from_config
 from sentseq_utils import split_document_sentences, truncate_sentence_units
 from train_pref_sentseq import (
   SentSeqRewardModel,
@@ -23,7 +22,8 @@ from train_pref_sentseq import (
 @dataclass
 class LoadedSentSeqModel:
   model: SentSeqRewardModel
-  sentence_model: SentenceTransformer
+  embedder: object
+  embed_backend: str
   normalize_embeddings: bool
   text_prefix: str
   max_sents: int
@@ -51,16 +51,23 @@ def load_sentseq_model(
   model = load_sentseq_model_from_artifact(artifact, device=dev)
   sent_cfg = {
     "sentence_model_name": config["sentence_model_name"],
+    "embed_backend": config.get("embed_backend", "sentence-transformers"),
+    "modernbert_base_model": config.get("modernbert_base_model", config["sentence_model_name"]),
+    "modernbert_checkpoint": config.get("modernbert_checkpoint") or "",
     "truncate_dim": config.get("truncate_dim"),
     "max_seq_length": config.get("max_seq_length"),
+    "normalize_embeddings": config.get("normalize_embeddings", True),
+    "text_prefix": config.get("text_prefix", ""),
   }
-  sentence_model = load_sentence_model_from_artifact(sent_cfg, device=str(dev))
-  for param in sentence_model.parameters():
-    param.requires_grad = False
+  embedder = load_embedder_from_config(sent_cfg, device=str(dev))
+  if hasattr(embedder, "parameters"):
+    for param in embedder.parameters():
+      param.requires_grad = False
 
   return LoadedSentSeqModel(
     model=model,
-    sentence_model=sentence_model,
+    embedder=embedder,
+    embed_backend=str(sent_cfg["embed_backend"]),
     normalize_embeddings=bool(config.get("normalize_embeddings", True)),
     text_prefix=str(config.get("text_prefix", "")),
     max_sents=int(config.get("max_sents", 128)),
@@ -76,8 +83,8 @@ def _encode_unique_sentences(
 ) -> dict[str, np.ndarray]:
   if not sentences:
     return {}
-  embeddings = encode_texts(
-    loaded.sentence_model,
+  embeddings = encode_with_embedder(
+    loaded.embedder,
     sentences,
     batch_size=loaded.encode_batch_size,
     normalize_embeddings=loaded.normalize_embeddings,
@@ -163,3 +170,29 @@ def score_candidates_sentseq(
     )
     scores.extend([float(x) for x in s.cpu().tolist()])
   return scores
+
+
+@torch.no_grad()
+def score_candidates_sentseq_delta(
+  loaded: LoadedSentSeqModel,
+  source_text: str,
+  candidates: list[str],
+  *,
+  batch_size: int = 16,
+) -> list[float]:
+  """各候補について Δ(source, candidate) = s(source, candidate) - s(source, source) を返す。"""
+  if not candidates:
+    return []
+  self_score = score_candidates_sentseq(
+    loaded,
+    source_text,
+    [source_text],
+    batch_size=batch_size,
+  )[0]
+  raw = score_candidates_sentseq(
+    loaded,
+    source_text,
+    candidates,
+    batch_size=batch_size,
+  )
+  return [float(v - self_score) for v in raw]

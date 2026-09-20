@@ -195,6 +195,8 @@ class SentSeqRewardModel(nn.Module):
 @dataclass
 class SentSeqTrainConfig:
   sentence_model_name: str = "cl-nagoya/ruri-v3-30m"
+  embed_backend: str = "sentence-transformers"
+  modernbert_checkpoint: str = ""
   truncate_dim: int | None = None
   text_prefix: str = "文章: "
   max_seq_length: int = 256
@@ -347,6 +349,21 @@ def encode_unique_sentences(
   """
   all_texts = collect_unique_texts(rows)
   unique_sents = collect_unique_sentences(all_texts, max_sents=cfg.max_sents)
+  if cfg.embed_backend == "modernbert":
+    from modernbert_embed import build_encoder, encode_text_map as encode_modernbert_map
+
+    mb_encoder = build_encoder(
+      base_model=cfg.sentence_model_name,
+      checkpoint_dir=cfg.modernbert_checkpoint,
+      max_seq_length=cfg.max_seq_length if cfg.max_seq_length > 0 else 256,
+      device=device,
+    )
+    return encode_modernbert_map(
+      mb_encoder,
+      unique_sents,
+      batch_size=cfg.encode_batch_size,
+      show_progress_bar=show_progress_bar,
+    )
   truncate_dim = normalize_truncate_dim(cfg.truncate_dim)
   encoder = SentenceTransformer(
     cfg.sentence_model_name,
@@ -565,6 +582,9 @@ def build_model_config(cfg: SentSeqTrainConfig, *, embed_dim: int, feature_dim: 
     "embed_dim": embed_dim,
     "feature_dim": feature_dim,
     "sentence_model_name": cfg.sentence_model_name,
+    "embed_backend": cfg.embed_backend,
+    "modernbert_base_model": cfg.sentence_model_name,
+    "modernbert_checkpoint": cfg.modernbert_checkpoint or None,
     "truncate_dim": normalize_truncate_dim(cfg.truncate_dim),
     "text_prefix": cfg.text_prefix,
     "max_seq_length": cfg.max_seq_length if cfg.max_seq_length > 0 else None,
@@ -621,6 +641,16 @@ def load_sentseq_model_from_artifact(
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--model", default="cl-nagoya/ruri-v3-30m")
+  parser.add_argument(
+    "--embed-backend",
+    choices=["sentence-transformers", "modernbert"],
+    default="sentence-transformers",
+  )
+  parser.add_argument(
+    "--modernbert-checkpoint",
+    default="",
+    help="D 学習済み checkpoint ディレクトリ。空なら --model の素の ModernBERT",
+  )
   parser.add_argument("--train-file", required=True, help="preference jsonl (swap 込み可)")
   parser.add_argument("--eval-file", required=True, help="preference jsonl")
   parser.add_argument("--output-dir", required=True)
@@ -662,6 +692,9 @@ def main() -> None:
 
   cfg = SentSeqTrainConfig(
     sentence_model_name=init_config.get("sentence_model_name", args.model),
+    embed_backend=init_config.get("embed_backend", args.embed_backend),
+    modernbert_checkpoint=init_config.get("modernbert_checkpoint")
+    or str(args.modernbert_checkpoint or "").strip(),
     truncate_dim=init_config.get("truncate_dim", normalize_truncate_dim(args.truncate_dim)),
     text_prefix=init_config.get("text_prefix", args.text_prefix),
     max_seq_length=init_config.get("max_seq_length") or args.max_seq_length,
@@ -692,6 +725,8 @@ def main() -> None:
 
   metrics = {
     "embedding_model": cfg.sentence_model_name,
+    "embed_backend": cfg.embed_backend,
+    "modernbert_checkpoint": cfg.modernbert_checkpoint or None,
     "text_prefix": cfg.text_prefix,
     "max_seq_length": cfg.max_seq_length if cfg.max_seq_length > 0 else None,
     "max_sents": cfg.max_sents,
