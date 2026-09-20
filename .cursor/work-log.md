@@ -8,7 +8,11 @@
 
 `plan-only-a2.md` §4–§5：E 評価の根本動機、交絡否証。詳細は plan 側。
 
-E 整備済（498 行、`validation.json` ok）。A2 R 学習実行中：`make ead-den-a2-train`（379 節、truncate 0/379）。ログ `outputs/ead/work/ead-den-a2-train.log`。完了後 `ead-r-a2-score-e`（分布 + §5 交絡検証）。
+E 整備済（498 行、`validation.json` ok）。A2 R 学習完了：`ead-den-a2`（379 節、truncate 0/379）。次：`ead-r-a2-score-e`（分布 + §5 交絡検証）。
+
+未push分を作業単位12コミットに整理済（`BRIEF.md` は未コミット）。`c8683b4` に同梱されていた a2_pdpo 学習データ（items/preferences/reference_logps）を filter-branch で履歴から除去。`a2_pdpo_experiment_spec/.gitignore` 追加（`4ceccb8`）。
+
+原稿・学習データの再コミット防止: `commit_data_guard.py`、`.githooks/pre-commit`（`make install-git-hooks`）、Cursor `gate_shell_commit_data.py`、ルート `.gitignore` の `**/data/*` パターン、`.cursor/rules/commit-data-guard.mdc`。
 
 A2 truncate（`edit_sft_section` 379 件、`Qwen3-8B` chat template、`max_seq_length=4096`）: **5/379 = 1.3%**（train 4/329、heldout 1/50）。中央値 995 tok、p99 4214。20% 閾値未満。
 
