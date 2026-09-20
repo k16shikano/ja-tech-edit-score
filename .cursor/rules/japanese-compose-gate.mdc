@@ -1,0 +1,37 @@
+---
+description: 日本語作文の厳格ゲート（スキル必読・BRIEF拒否・和欧間検査・Shell封鎖）
+alwaysApply: true
+---
+
+# 日本語作文の厳格ゲート
+
+口頭指示だけでは守れない。`.cursor/hooks.json` の Hook が **deny** する。Allow で bypass しない。
+
+## ゲート一覧
+
+| 操作 | Hook | 条件 |
+| --- | --- | --- |
+| `BRIEF.md` 編集 | `context_harness` / `gate_shell_compose` | 常に deny |
+| `.md`/`.mdc` 追記・置換 | `context_harness` | セッション内で `japanese-tech-writing/SKILL.md` を Read 済みであること |
+| `.md`/`.mdc` 追記・置換 | `context_harness` | 追記・置換テキストに和欧間の不要空白がないこと |
+| Shell で `.md`/`.mdc` 書き込み | `gate_shell_compose` | 上と同じ（`cat >`、`sed -i`、リダイレクト、`cp`/`mv` を含む） |
+| スキル Read 記録 | `context_harness`（postToolUse） | `Read` 成功後に `.cursor/hooks/state/*.read` を更新 |
+| セッション開始 | `context_harness`（sessionStart） | スキル Read フラグをリセット |
+
+## エージェントの手順
+
+1. 日本語をファイルに書く前に `japanese-tech-writing/SKILL.md` を **Read**（チャット説明なら `japanese-explanation` も）
+2. 整形節（和欧間の空白、中黒、LLM口調）を確認
+3. 和欧間空白を入れずに Write / StrReplace
+4. deny されたら直して再提出。ユーザーに Allow を求めない
+
+## BRIEF
+
+BRIEF への反映はユーザーが行う。エージェントはチャットに下書きだけ出す。
+
+## 実装
+
+- `.cursor/hooks/context_harness.py`
+- `.cursor/hooks/gate_shell_compose.py`
+- `.cursor/hooks/ja_compose_check.py`
+- `.cursor/hooks/skill_read_state.py`

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "python3 .cursor/hooks/context_harness.py",
+        "failClosed": true,
+        "timeout": 10
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "python3 .cursor/hooks/context_harness.py",
+        "failClosed": true,
+        "timeout": 10
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "python3 .cursor/hooks/context_harness.py",
+        "matcher": "Write|StrReplace|Delete|EditNotebook",
+        "failClosed": true,
+        "timeout": 10
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "python3 .cursor/hooks/context_harness.py",
+        "matcher": "Read",
+        "failClosed": true,
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "python3 .cursor/hooks/gate_shell_compose.py",
+        "failClosed": true,
+        "timeout": 10
+      }
+    ]
+  }
+}

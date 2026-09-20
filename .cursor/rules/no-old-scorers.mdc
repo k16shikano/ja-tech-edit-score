@@ -22,7 +22,7 @@ Web / revise / rank の既定は、主評価器 `outputs/pref-sentseq-section-tr
 レビュー済みの推敲前後ペアから作った分割だけを学習に使う。
 
 - データ: `make pref-keep-data` → `data/pref_keep_split_hunk/` と `data/pref_keep_split_section/`
-- BT: hunk のみ → `outputs/pref-bt-keep`（DOK: `docs/DOK-PREF-KEEP.md`）
+- BT: hunk のみ → `outputs/pref-bt-keep`
 - 文列: 節のみ → `outputs/pref-sentseq-keep`
 
 単位を混ぜた一回目の成果物は `outputs/pref-bt-keep-mixed` / `outputs/pref-sentseq-keep-mixed` に退避済み。現行の採点・採否には使わない。
