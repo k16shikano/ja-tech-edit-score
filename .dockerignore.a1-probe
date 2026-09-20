@@ -1,0 +1,16 @@
+# Dockerfile.a1-probe 専用。非公開レジストリのみへ push。
+*
+!requirements-edit-sft.txt
+!scripts/
+!scripts/generate_edit_sft.py
+!scripts/generation_integrity.py
+!scripts/dok_a1_probe_gen.sh
+!data/
+!data/edit_sft_hunk_nopara/
+!data/edit_sft_hunk_nopara/train.jsonl
+!data/a1_probe/
+!data/a1_probe/japanese-tech-writing.md
+!outputs/
+!outputs/edit-sft/
+!outputs/edit-sft/_dok_adapter/
+!outputs/edit-sft/_dok_adapter/**

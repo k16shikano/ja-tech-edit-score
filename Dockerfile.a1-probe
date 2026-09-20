@@ -1,0 +1,35 @@
+# A1 学習側の三群生成（base / base_norms / adapter）。全件。スモークは LIMIT。
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+WORKDIR /app
+
+COPY requirements-edit-sft.txt ./
+RUN pip install --no-cache-dir -U pip \
+  && pip install --no-cache-dir -r requirements-edit-sft.txt
+
+COPY scripts/generate_edit_sft.py scripts/generation_integrity.py scripts/
+COPY scripts/dok_a1_probe_gen.sh /app/dok_a1_probe_gen.sh
+RUN chmod +x /app/dok_a1_probe_gen.sh
+
+COPY data/edit_sft_hunk_nopara/train.jsonl data/edit_sft_hunk_nopara/train.jsonl
+COPY data/a1_probe/japanese-tech-writing.md data/a1_probe/japanese-tech-writing.md
+COPY outputs/edit-sft/_dok_adapter /app/adapter
+
+ENV PYTHONUNBUFFERED=1
+ENV MODEL=Qwen/Qwen3-8B
+ENV ADAPTER=/app/adapter
+ENV HELDOUT=data/edit_sft_hunk_nopara/train.jsonl
+ENV NORMS_FILE=data/a1_probe/japanese-tech-writing.md
+ENV OUT_DIR=outputs/a1-probe
+ENV MAX_NEW_TOKENS=4096
+ENV MAX_INPUT_TOKENS=3072
+ENV LOAD_IN_4BIT=1
+ENV DEVICE=cuda
+ENV TRUST_REMOTE_CODE=1
+ENV TEMPERATURE=0.7
+ENV TOP_P=0.9
+ENV SEED=0
+ENV LIMIT=0
+ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+ENTRYPOINT ["/bin/bash", "/app/dok_a1_probe_gen.sh"]

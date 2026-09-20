@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>生成の位置付け</title>
+  <style>
+    :root {
+      --bg: #f7f5f0;
+      --ink: #1c1b19;
+      --muted: #5c574e;
+      --line: #d9d2c4;
+      --card: #fffefb;
+      --accent: #2f5d50;
+      --warn: #8a4b2e;
+      --del-bg: #f8d7da;
+      --del-ink: #842029;
+      --ins-bg: #d1e7dd;
+      --ins-ink: #0f5132;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+    }
+    header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--line);
+      background: var(--card);
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    h1 { font-size: 1.1rem; margin: 0; font-weight: 650; }
+    #progress { color: var(--muted); font-size: 0.95rem; }
+    #item-id {
+      font-family: ui-monospace, monospace;
+      font-size: 0.82rem;
+      color: var(--muted);
+      user-select: all;
+      word-break: break-all;
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+    .lead { color: var(--muted); margin: 0 0 1rem; }
+    .label {
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin: 0 0 0.35rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 1rem 1.1rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.98rem;
+      max-height: 42vh;
+      overflow: auto;
+    }
+    .panel.diff-view {
+      white-space: normal;
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+    .diff-line {
+      display: block;
+      padding: 0.12rem 0.35rem;
+      border-radius: 3px;
+      margin: 0.08rem 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .diff-gutter {
+      display: inline-block;
+      width: 1.2em;
+      color: var(--muted);
+      font-family: ui-monospace, monospace;
+    }
+    .diff-eq { color: var(--ink); }
+    .diff-ins-line { background: var(--ins-bg); color: var(--ins-ink); }
+    .diff-chg { background: #fff6d8; }
+    .diff-ins { background: var(--ins-bg); color: var(--ins-ink); }
+    .diff-del { background: var(--del-bg); color: var(--del-ink); text-decoration: line-through; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .view-toggle button {
+      font: inherit;
+      font-size: 0.8rem;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--muted);
+      border-radius: 4px;
+      padding: 0.15rem 0.45rem;
+      cursor: pointer;
+    }
+    .view-toggle button.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .legend { font-size: 0.8rem; color: var(--muted); margin: 0.4rem 0 0.8rem; }
+    textarea {
+      width: 100%;
+      min-height: 4rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.6rem 0.7rem;
+      font: inherit;
+      background: var(--card);
+    }
+    .actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+    button.choice {
+      font: inherit;
+      font-size: 0.98rem;
+      border: none;
+      border-radius: 6px;
+      padding: 0.65rem 1.1rem;
+      cursor: pointer;
+      color: #fff;
+    }
+    button.choice-d { background: var(--accent); }
+    button.choice-c { background: #3d5a80; }
+    button.choice-eq { background: #6b6560; }
+    button.choice-a { background: var(--warn); }
+    #done-msg {
+      display: none;
+      margin-top: 2rem;
+      padding: 1.25rem;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 6px;
+    }
+    #err { color: var(--warn); margin: 0.75rem 0 0; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>生成の位置付け</h1>
+    <div id="progress">読込中…</div>
+    <div id="item-id"></div>
+  </header>
+  <main>
+    <p class="lead">下書きと候補だけを見ます。自分の推敲は出しません。</p>
+    <div id="judge-view">
+      <p class="legend">
+        <span class="diff-del">− 下書きにあって候補に無い</span>
+        ／
+        <span class="diff-ins">＋ 候補で増えた</span>
+      </p>
+      <div class="grid">
+        <div>
+          <p class="label"><span>下書き</span></p>
+          <div class="panel" id="draft"></div>
+        </div>
+        <div>
+          <p class="label">
+            <span>候補</span>
+            <span class="view-toggle">
+              <button type="button" data-mode="diff" class="active">差分</button>
+              <button type="button" data-mode="full">全文</button>
+            </span>
+          </p>
+          <div class="panel diff-view" id="generated"></div>
+        </div>
+      </div>
+      <label class="label" for="comment" style="display:block;margin-top:1rem">コメント（任意）</label>
+      <textarea id="comment" placeholder="気になった点があれば"></textarea>
+      <div class="actions">
+        <button class="choice choice-d" id="btn-d">自分ならこれくらい推敲する</button>
+        <button class="choice choice-c" id="btn-c">自分の推敲ほどではないが方向はあってる</button>
+        <button class="choice choice-eq" id="btn-eq">同等（推敲に関係ないスタイルの差だけ）</button>
+        <button class="choice choice-a" id="btn-a">推敲どころか劣化</button>
+      </div>
+      <p id="err"></p>
+    </div>
+    <div id="done-msg">いま出せる件はすべて付け終わりました。</div>
+  </main>
+  <script>
+    let currentId = null;
+    let currentGenerated = "";
+    let currentDiff = "";
+    let viewMode = "diff";
+
+    const draftEl = document.getElementById("draft");
+    const generatedEl = document.getElementById("generated");
+    const progressEl = document.getElementById("progress");
+    const itemIdEl = document.getElementById("item-id");
+    const errEl = document.getElementById("err");
+    const commentEl = document.getElementById("comment");
+    const judgeView = document.getElementById("judge-view");
+    const doneMsg = document.getElementById("done-msg");
+    const syncPanels = [draftEl, generatedEl];
+    let scrollSyncLock = false;
+
+    function getScrollRatio(el) {
+      const max = el.scrollHeight - el.clientHeight;
+      return max > 0 ? el.scrollTop / max : 0;
+    }
+
+    function setScrollRatio(el, ratio) {
+      const max = el.scrollHeight - el.clientHeight;
+      el.scrollTop = max > 0 ? ratio * max : 0;
+    }
+
+    function syncScrollFrom(source) {
+      if (scrollSyncLock) return;
+      scrollSyncLock = true;
+      const ratio = getScrollRatio(source);
+      for (const target of syncPanels) {
+        if (target !== source) setScrollRatio(target, ratio);
+      }
+      requestAnimationFrame(() => {
+        scrollSyncLock = false;
+      });
+    }
+
+    function resetCompareScroll() {
+      scrollSyncLock = true;
+      for (const el of syncPanels) el.scrollTop = 0;
+      requestAnimationFrame(() => {
+        scrollSyncLock = false;
+      });
+    }
+
+    function showGenerated() {
+      const ratio = getScrollRatio(draftEl);
+      if (viewMode === "full") {
+        generatedEl.classList.remove("diff-view");
+        generatedEl.textContent = currentGenerated;
+      } else {
+        generatedEl.classList.add("diff-view");
+        generatedEl.innerHTML = currentDiff;
+      }
+      setScrollRatio(generatedEl, ratio);
+    }
+
+    document.querySelectorAll(".view-toggle button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        viewMode = btn.getAttribute("data-mode") || "diff";
+        document.querySelectorAll(".view-toggle button").forEach((b) => {
+          b.classList.toggle("active", b === btn);
+        });
+        showGenerated();
+      });
+    });
+
+    async function refreshStatus() {
+      const res = await fetch("/api/status");
+      const st = await res.json();
+      progressEl.textContent = `残り ${st.remaining} ／ 済 ${st.done} ／ 対象 ${st.total}`;
+    }
+
+    async function loadNext() {
+      errEl.textContent = "";
+      await refreshStatus();
+      const res = await fetch("/api/next");
+      const data = await res.json();
+      if (data.done) {
+        judgeView.style.display = "none";
+        doneMsg.style.display = "block";
+        currentId = null;
+        itemIdEl.textContent = "";
+        return;
+      }
+      judgeView.style.display = "block";
+      doneMsg.style.display = "none";
+      currentId = data.pair_id;
+      itemIdEl.textContent = data.pair_id || "";
+      currentGenerated = data.generated || "";
+      currentDiff = data.generated_diff_html || "";
+      draftEl.textContent = data.draft || "";
+      commentEl.value = "";
+      showGenerated();
+      resetCompareScroll();
+    }
+
+    async function submit(position) {
+      if (!currentId) return;
+      errEl.textContent = "";
+      const res = await fetch("/api/judge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pair_id: currentId,
+          position,
+          comment: commentEl.value || "",
+        }),
+      });
+      if (!res.ok) {
+        errEl.textContent = "保存に失敗しました。";
+        return;
+      }
+      await loadNext();
+    }
+
+    document.getElementById("btn-d").addEventListener("click", () => submit("d"));
+    document.getElementById("btn-c").addEventListener("click", () => submit("c"));
+    document.getElementById("btn-eq").addEventListener("click", () => submit("eq"));
+    document.getElementById("btn-a").addEventListener("click", () => submit("a"));
+    for (const el of syncPanels) {
+      el.addEventListener("scroll", () => syncScrollFrom(el), { passive: true });
+    }
+    loadNext().catch((err) => {
+      errEl.textContent = String(err);
+    });
+  </script>
+</body>
+</html>
