@@ -1,0 +1,7 @@
+# 原稿本文・生成・学習中間・重み・run ログ（COMMIT-RULES 同型）
+data/A2/items.jsonl
+data/preferences/*.jsonl
+data/reference_logps/
+data/generated/
+checkpoints/
+outputs/
