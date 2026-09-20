@@ -39,9 +39,6 @@ outputs/hard_eval*
 outputs/eval*
 outputs/acceptance_margin_calibration_anchor.json
 Dockerfile.pref-*
-!Dockerfile.pref-gpm
-Dockerfile.edit-*
-Dockerfile.steering
 scripts/*
 !scripts/score_server.py
 !scripts/pref_scorer.py
@@ -73,7 +70,3 @@ scripts/*
 !scripts/pref_pair_utils.py
 !scripts/pref_setwise_runtime.py
 !scripts/dok_pref_multigranular.sh
-!scripts/train_pref_gpm.py
-!scripts/pref_gpm_runtime.py
-!scripts/dok_pref_gpm.sh
-!scripts/build_push_pref_gpm_image.sh
