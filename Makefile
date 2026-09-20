@@ -1708,3 +1708,14 @@ ead-calibrate-tau:
 	  --gate-level-checkpoint "$(GATE_LEVEL_CHECKPOINT)" \
 	  --predictions "$(GATE_LEVEL_PREDICTIONS)" \
 	  $(if $(DEN_ADAPTER_CHECKPOINT),--den-adapter-checkpoint "$(DEN_ADAPTER_CHECKPOINT)",)
+
+.PHONY: install-git-hooks test-commit-data-guard
+
+install-git-hooks:
+	@mkdir -p "$(ROOT).git/hooks"
+	@cp "$(ROOT).githooks/pre-commit" "$(ROOT).git/hooks/pre-commit"
+	@chmod +x "$(ROOT).git/hooks/pre-commit"
+	@echo "installed .git/hooks/pre-commit"
+
+test-commit-data-guard:
+	$(PYTHON) .cursor/hooks/test_commit_data_guard.py

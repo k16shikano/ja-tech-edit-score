@@ -1,0 +1,29 @@
+---
+description: 原稿・学習データの Git コミット禁止（COMMIT-RULES 機械強制）
+alwaysApply: true
+---
+
+# 原稿・学習データはコミットしない
+
+公開 GitHub 向け。`docs/COMMIT-RULES.md` をコミット整理の前に読む。
+
+## 機械ゲート
+
+| 層 | 場所 |
+| --- | --- |
+| Git | `.githooks/pre-commit`（`make install-git-hooks` で有効化） |
+| Cursor Shell | `.cursor/hooks/gate_shell_commit_data.py` |
+
+deny されたら Allow で bypass しない。載せるべきでないファイルを外してから再実行する。
+
+## エージェントがやらないこと
+
+- `git add data/`、`git add */data`、`git add -A`、実験 spec 配下の `data/` ディレクトリごとの add
+- 「再現用」として Phase 中間成果物（items、preferences、reference_logps、generated）を載せる判断
+- ルート `.gitignore` が `data/` を無視しているから、別パス `foo/data/` は安全、という推論
+
+ネストした `*/data/` はルート `data/` と別パス。許可は `COMMIT-RULES` と `commit_data_guard.py` の明示リストだけ（split_manifest、schema、template、`.gitkeep` など）。
+
+## コミット前
+
+ステージ内容は `python3 .cursor/hooks/commit_data_guard.py --staged` で点検できる。

@@ -36,6 +36,11 @@
         "command": "python3 .cursor/hooks/gate_shell_compose.py",
         "failClosed": true,
         "timeout": 10
+      },
+      {
+        "command": "python3 .cursor/hooks/gate_shell_commit_data.py",
+        "failClosed": true,
+        "timeout": 15
       }
     ]
   }

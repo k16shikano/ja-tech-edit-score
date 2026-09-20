@@ -38,6 +38,7 @@ BRIEF 以外だけ、または作業ログだけで答えるな。
 
 【厳格ゲート】日本語プロースを .md/.mdc に書く前に japanese-tech-writing/SKILL.md を Read する（未 Read なら deny）。
 BRIEF.md は Write/StrReplace/Shell すべて deny。和欧間の不要空白は deny。Shell による .md 書き込みも同じゲート。
+git add / git commit は原稿・学習データ載せを deny（docs/COMMIT-RULES.md、commit_data_guard.py）。*/data/ ディレクトリごとの add 禁止。
 Allow で bypass しない。既存 BRIEF の空白を規範の代わりに使わない。
 """
 

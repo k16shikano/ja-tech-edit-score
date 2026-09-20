@@ -7,6 +7,12 @@ run/
 
 # data/ は原稿本文を含むため既定で無視する。
 # 公開してよいもの（スキーマ・テンプレート・規範）だけを許可する。
+# 実験サブディレクトリ内の data/ も同型（ルート data/ とは別パス）。
+**/data/A2/items.jsonl
+**/data/preferences/*.jsonl
+**/data/reference_logps/
+**/data/generated/
+**/checkpoints/
 data/*
 !data/.gitkeep
 !data/README.md

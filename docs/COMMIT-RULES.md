@@ -25,7 +25,14 @@
 
 `.gitignore` はこの規則を既定で強制する形にしてある。
 `data/` と `outputs/` は既定で無視され、公開してよいものだけを `!` で許可している。
+実験用サブディレクトリ内の `*/data/` も同型で、原稿本文・学習中間・生成物は載せない（`a2_pdpo_experiment_spec/data/` など。ルート `data/` とは別パス）。
 新しく公開したいファイルができたときは、原稿の本文が含まれないことを確認したうえで `.gitignore` に許可を追記する。
+
+## 機械チェック
+
+- Git: `make install-git-hooks` で `.githooks/pre-commit` を有効化する。ステージ済みファイルを `commit_data_guard.py` が検査する。
+- 手動点検: `python3 .cursor/hooks/commit_data_guard.py --staged`
+- テスト: `make test-commit-data-guard`
 
 ## 成果物に本文を残さない
 
