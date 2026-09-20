@@ -1,31 +1,25 @@
 # 学習データの作り方
 
-BRIEF の A / A1 / A2 / B / C が、どの手順でできたか。実施済みである。作り直すときの入口もここ。
+BRIEF の A / A1 / A2 / B / C / D が、どの手順でできたか。実施済みである。作り直すときの入口もここ。
 ディレクトリの置き場は [data/README.md](../data/README.md)。
 
-## 推敲前後ペア（A）
+## A（推敲前後ペア全体）
 
-人がレビューして採用した、下書きと人間の推敲の対である。全 1976 件。正本は `data/revision_corpus/canonical.jsonl`。
+人がレビューして採用した、下書きと人間の推敲の対。全 1976 件。正本は `data/revision_corpus/canonical.jsonl`。
 
 採掘は Git のブランチ対から行う。短い箇所（空行を含まない）は `make data`、段落境界を含む節は `make mine-sections`。
 レビューは `make edit-sft-review`（節）と `make edit-sft-review-hunk`（断片）。採用した対を `make edit-sft-export-keeps` で書き出し、`make edit-sft-promote-reviewed` で正本へ載せる。
 
 節か断片かは、空行（段落境界）の有無で分ける。
 
-- 節: 379 件。`data/revision_corpus/keep_section.jsonl`
-- 断片: 1597 件。`data/revision_corpus/keep_hunk_nopara.jsonl`
+- 節（A2 の元）: 379 件。`data/revision_corpus/keep_section.jsonl`
+- 断片（A1 の元）: 1597 件。`data/revision_corpus/keep_hunk_nopara.jsonl`
 
-これが BRIEF の A2 と A1 の元である。
+## ペア単位の分割（A1 / A2 共通）
 
-## ペア単位の分割（A1 / A2、生成器と評価器で同じ）
+全 1976 件を、書籍に関係なくペア単位で学習と検証に分ける。乱択のシードは 42。検証側は 260 件。節と断片の比率を保つ層化である。割当の再現用は `data/pairsplit/assignment.jsonl`。
 
-全 1976 件を、書籍に関係なくペア単位で学習と検証に分ける。
-
-以前は書籍単位で分けていた。ペア数の書籍分布に偏りがあり、検証側が特定の書籍の文体と分量に寄る。主張したいのは個々の推敲の質であって、書籍をまたぐ汎化ではないので、書籍単位で分ける必要はない。
-
-乱択のシードは 42。検証側は 260 件。節と断片の比率を保つ層化である。割当の再現用は `data/pairsplit/assignment.jsonl`。旧い書籍単位の id 一覧は `data/pairsplit/booksplit_ids.json` に退避してある。
-
-同じ割当から、生成器の SFT 用と評価器の選好用の両方を出す。分割が食い違うと、評価器が検証ペアを学習済みになる。
+同じ割当から、生成器の SFT 用と評価器の選好用の両方を出す。
 
 ```text
 make pairsplit-data
@@ -37,46 +31,28 @@ make pairsplit-data
 
 - SFT（チャット形式）: `data/edit_sft_section/`、`data/edit_sft_hunk_nopara/`、`data/edit_sft_all/` の `train.jsonl` と `heldout.jsonl`
 - 選好: `data/pref_keep_split_section/`、`data/pref_keep_split_hunk/` の `train.jsonl` と `valid.jsonl`
-- A2 の学習 329 件・検証 50 件は、節の train / heldout である
-- A1 の学習 1387 件・検証 210 件は、断片の train / heldout である
 
-選好 JSONL だけを出し直すときは `make pref-keep-data`。各行は下書きを `source_text`、人間の推敲を `candidate_a`、下書きを `candidate_b`、`label` は 1 である。分割は canonical の `meta.split` を維持する。
+選好 JSONL だけを出し直すときは `make pref-keep-data`。各行は下書きを `source_text`、人間の推敲を `candidate_a`、下書きを `candidate_b`、`label` は 1 である。
 
-## 人手判定 60 件（C の対象）
+## A1（段落内の断片）
 
-検証側 260 件から、人手のブラインド判定に使う 60 件を選ぶ。節ペアを優先する。下書きが 100 文字未満のものは除く。乱択のシードは 42。
+A の断片 1597 件。段落境界をまたがない推敲のみ。学習用ファイルは `data/revision_corpus/keep_hunk_nopara.jsonl`。
 
-```text
-make select-blind-items
-```
+ペア分割後:
 
-成果物は `data/blind_eval/items.jsonl`（下書きと人間の推敲）。
-生成は BRIEF の評価用データ C。判定ペアは `make build-blind-pairs`、判定は `make blind-judge`。
+- 学習 1387 件: `data/edit_sft_hunk_nopara/train.jsonl`、`data/pref_keep_split_hunk/train.jsonl`
+- 検証 210 件: `data/edit_sft_hunk_nopara/heldout.jsonl`、`data/pref_keep_split_hunk/valid.jsonl`
 
-## スカラー仮説の検査（C から 10 件）
+## A2（節）
 
-評価用データ C の 60 件から 10 件を乱択する。乱択のシードは 42。
-各件の候補は下書き 1 本と、SFT アダプタの 8 本のうち当時の評価器が最高点を付けた 1 本を除いた 2 本である。
-総当たりは件あたり 3 対、全体で 30 対である。
-問いは、左右のどちらが自分の推敲に近いかである。同等と比較できないを許す。
-比較できないは同程度ではない。
-比較できない対がある件は、推移的とも循環とも数えない。
-人間の推敲本文は出さない。評価器が選んだ文は出さない。
-下書きは文脈として出し、候補の一方にもなりうる。
-10 件は循環が出るかの初回診断であり、60 件での割合の推定ではない。
+A の節 379 件。段落境界を含む推敲。学習用ファイルは `data/revision_corpus/keep_section.jsonl`。
 
-```text
-make scalar-transitivity-pairs
-make scalar-transitivity-judge
-make analyze-scalar-transitivity
-```
+ペア分割後:
 
-成果物は `data/blind_eval/pairs_scalar_transitivity.jsonl` と `judgments_scalar_transitivity.jsonl`。
-手順は `data/blind_eval/scalar_transitivity_protocol.json`。
-集計は `data/blind_eval/scalar_transitivity_analysis.json`。
-判定 Web はポート 8325、ホストは `0.0.0.0`。
+- 学習 329 件: `data/edit_sft_section/train.jsonl`、`data/pref_keep_split_section/train.jsonl`
+- 検証 50 件: `data/edit_sft_section/heldout.jsonl`、`data/pref_keep_split_section/valid.jsonl`
 
-## 教師データ B
+## B（節の三つ組み選好）
 
 A2 の下書き 379 件のそれぞれに、生成器の SFT と同じ指示文で Composer（`composer-2.5`）が推敲を 1 本出す。人間の推敲はプロンプトに見せない。
 
@@ -95,7 +71,7 @@ A2 の下書き 379 件のそれぞれに、生成器の SFT と同じ指示文�
 - 生成 ＞ 下書き
 
 A2 の検証 50 件は学習側に入れない。生成と劣化確認は 379 件すべてに対して行った。
-人が劣化していないと付けたのは 378 件、劣化していると付けたのは 1 件である。劣化 1 件は学習側だった。学習 328 件、検証は A2 の 50 件である。
+人が劣化していないと付けたのは 378 件、劣化していると付けたのは 1 件である。劣化 1 件は学習側だった。学習 328 件、検証 50 件である。
 
 ```text
 make section-middle-gen
@@ -103,36 +79,77 @@ make section-middle-judge
 make section-middle-triples
 ```
 
-成果物は `data/section_middle/revisions.jsonl`、`judgments.jsonl`、`pref_train.jsonl`、`pref_valid.jsonl`。
+成果物:
 
-## B の検証 50 件のブラインド判定
+- 生成と劣化確認: `data/section_middle/revisions.jsonl`、`judgments.jsonl`
+- 選好（下書きあたり 3 行）: `data/section_middle/pref_train.jsonl`（984 行）、`pref_valid.jsonl`（150 行）
 
-学習用データ B の検証 50 件について、人間の推敲と Composer の推敲の上下を、左右の役割を隠して人が付ける。下書きは文脈として出す。Composer の本文は B の生成済み 1 本を使い、新たに出さない。評価器が選んだ文は使わない。
+検証 50 件について、人間の推敲と Composer の推敲の上下を人がブラインドで付けた結果は `data/blind_eval/pairs_pref_valid_gold_vs_composer.jsonl` と `judgments_pref_valid_gold_vs_composer.jsonl`。入口は `make pref-valid-blind-pairs` と `make pref-valid-blind-judge`。
 
-```text
-make pref-valid-blind-pairs
-make pref-valid-blind-judge
-```
+## C（LoRA 評価用 60 件）
 
-成果物は `data/blind_eval/pairs_pref_valid_gold_vs_composer.jsonl` と `judgments_pref_valid_gold_vs_composer.jsonl`。手順は `data/blind_eval/valid50_gold_vs_composer_protocol.json`。集計の分母は、人が同等としなかった件。分子は、人の上下とその評価器の点の上下が一致した件数である。
-
-## 独立した人手判定の 40 件
-
-学習 328 件と検証 50 件に使っていない下書きで、評価器が同じかを人が見るための固定一覧である。
-出典は A1 の検証側。下書きは 100 文字以上。乱択のシードは 42。
+A1 / A2 の検証側 260 件から、人手ブラインド判定に使う 60 件を選ぶ。節 50 件、断片 10 件。節ペアを優先する。下書きが 100 文字未満のものは除く。乱択のシードは 42。
 
 ```text
-make freeze-8d-items
+make select-blind-items
 ```
 
-成果物は `data/blind_eval/8d_items.jsonl`。手順は `data/blind_eval/8d_protocol.json`。候補本文の生成は判定の直前に行い、生成後は置き換えない。判定の進め方は [PLAN.md](PLAN.md) の「独立した人手判定」。
+成果物は `data/blind_eval/items.jsonl`（下書きと人間の推敲）。
 
-## ブラインド判定 360 件からの選好 JSONL
+各下書きについて、Qwen に A1 / A2 で学んだ SFT アダプタを載せ、温度付きサンプリングで推敲を 8 本出す。成果物は `outputs/edit-sft-eval-v3/adapter_samples.jsonl`。
 
-`data/blind_eval/pairs.jsonl` と `judgments.jsonl` と `items.jsonl` を結合する。左右の割り付けを維持し、`preference` は `a` / `b` / `tie` である。欠陥ペアと同等も除外しない。
+人間の推敲と、8 本のうち当時の評価器が最高点を付けた 1 本とのペアを `make build-blind-pairs` で作り、人が優劣を付ける（`make blind-judge`）。
 
-同じ item の 6 比較は分離しない。シード 42 の決定的 5-fold で、節 50 item を `data/generated_pref_experiment/folds_section/` に書く。各 fold の valid は 10 item、train は 40 item。fold 間で valid item は重ならない。断片 10 item は `folds_hunk/` に同じ分け方で書く。
+- 対象 60 件の下書きと人間の推敲: `data/blind_eval/items.jsonl`
+- アダプタ生成 8 本: `outputs/edit-sft-eval-v3/adapter_samples.jsonl`
+- 人間の推敲と選抜 1 本のペア: `data/blind_eval/pairs_gold_vs_adapter_selected.jsonl`
+- 人間の判定: `data/blind_eval/judgments_gold_vs_adapter_selected.jsonl`
+
+## D（区間教師 800 行）
+
+A1 の学習側 1387 件から 200 下書きを乱択する（シード 42）。同一下書きについて Qwen3-8B が三条件で推敲を 1 本ずつ出し、人が各生成に位置ラベルを付ける。同じ 200 下書きに対する人間の推敲 200 行を足して 800 行にまとめる。
+
+三条件（各 200 行）:
+
+- アダプタなし。SFT と同じ指示文（`qwen_base`）
+- アダプタなし。指示の前に japanese-tech-writing の本文を置く（`qwen_base_norms`）
+- A1 で学んだアダプタ。SFT と同じ指示文（`qwen_adapter`）
+
+位置ラベル（`position` 列）:
+
+| 位置 | 意味 |
+|------|------|
+| a | 劣化 |
+| b | 下書きに相当 |
+| c | 改善だが人間ほどではない |
+| d | 人間の推敲と同程度 |
+
+生成 600 行に位置ラベル付き。人間の推敲 200 行は位置 d。
 
 ```text
-make generated-pref-data
+make a1-probe-items
+make build-a1-probe-image
+make a1-probe-smoke-check
+make a1-probe-check
+make a1-probe-position-judge
+make pref-d-data
 ```
+
+中間成果物:
+
+- 対象 200 件の id: `data/a1_probe/ids.jsonl`
+- 三群生成: `outputs/a1-probe/base_samples.jsonl`、`base_norms_samples.jsonl`、`adapter_samples.jsonl`
+- 位置判定: `outputs/a1-probe/position_judgments.jsonl`（600 行）
+
+D 本体:
+
+- 800 行: `data/d/dataset.jsonl`
+- 下書き単位 8:2 分割: `train.jsonl`（640 行）、`valid.jsonl`（160 行）、`valid_item_ids.jsonl`（40 下書き）、`split_stats.json`
+- 5 分割（各 640 / 160 行）: `data/d/folds/`
+- スキーマ: `data/d.schema.json`
+- 分割の乱数 `--seed` 0
+
+位置ラベルの件数（800 行全体）: a 267、b 165、c 118、d 250（うち人間 200 行）。
+
+学習手順（区間損失 f）は [plan-d-interval.md](plan-d-interval.md)。
+選好ベクトル GPM は [plan-d-gpm.md](plan-d-gpm.md)。

@@ -1,8 +1,10 @@
+# 待避。現行の計画ではない。
+
 # 実験計画
 
 何をしたくて、各評価器で何をやったかは [BRIEF.md](../BRIEF.md) を正本とする。
-学習データの作り方は [DATA.md](DATA.md)。
-本書は、いまの手順とこのあとである。さくら高火力 DOK の起動値は [DOK-PLAN.md](DOK-PLAN.md)。人手判定の集計は [RESULTS.md](RESULTS.md)。
+学習データの作り方は [DATA.md](../docs/DATA.md)。
+本書は、いまの手順とこのあとである。旧 DOK 起動値は [DOK-PLAN.md](DOK-PLAN.md)。人手判定の集計は [RESULTS.md](../docs/RESULTS.md)。
 
 データと評価器の呼び名（A、A1、A2、B、C、各 `outputs/`）も BRIEF に合わせる。
 
@@ -10,7 +12,7 @@
 
 採点 Web / `make revise` / `make rank` の主評価器は `outputs/pref-sentseq-section-triples`。ゲートは `outputs/pref-bt-keep`。合格ラインは節 keep 検証 50 件の self 基準中央値 3.4。
 
-スカラー仮説の検査は、評価用データ C から 10 件、下書きと未選抜 2 本の総当たり 30 対を人が付けた。入口は `make analyze-scalar-transitivity`。作り方は [DATA.md](DATA.md)。問いと採否の定義は BRIEF。
+A1 学習側の三群生成の成果物は `outputs/a1-probe/`（指示漏れ 3 件を外し 1384 件）。作り方は [DATA.md](DATA.md)。
 
 ## 評価器
 
@@ -36,10 +38,6 @@
 
 人間の推敲を 1、下書きと Composer を 0 とする検出も、文列型の点の上で学んだ。検証件数は BRIEF の pref-detect-section。
 その検出に、Composer の点が下書きより高くなる項を足した学習は BRIEF の pref-detect-cd-section。
-
-### GPM（A1 と B）
-
-General Preference Model で、A1 の段落内推敲ペア（`data/pref_keep_split_hunk/`）と B の節三つ組み（`data/section_middle/pref_*.jsonl`）を同時に学ぶ。成果物は `outputs/pref-gpm-a1b/`。本学習は `make build-pref-gpm-image`、手元スモークは `make pref-gpm-smoke`。
 
 ### スカラー仮説の検査
 

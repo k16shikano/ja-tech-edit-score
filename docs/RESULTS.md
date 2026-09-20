@@ -15,7 +15,7 @@
 
 ## 2. 用語
 
-PLAN.md の用語表に加え、本集計で使う識別子を次に固定する。
+本集計で使う識別子を次に固定する。
 
 **下書き**：判定対象節の推敲前原文。`items.jsonl` の `draft`、画面上の「文脈」、評価器採点時の `source` に使う。
 
@@ -306,7 +306,7 @@ v2 / v2b / v2c の 24 件は、制御改悪とトークン上限のための段�
 
 同じ 24 件について、三つ組み setwise 文列型（`outputs/pref-setwise-section-triples`、architecture=`local_stream_then_joint_tokens_v2`）でも採点した。§7 と同じ v2b / v2c 入力を使う。strict 比較の eps は 1e-6。人間の推敲本文と下書きが同一の候補は runtime で同値化する。
 
-2026-08-14 の旧 DOK 成果物（architecture=`joint_transformer_on_sentence_tokens`）は、全候補が一様同点に崩壊し学習できていなかった。以下は修正版のみの結果である。
+2026-08-14 の旧成果物（architecture=`joint_transformer_on_sentence_tokens`）は、全候補が一様同点に崩壊し学習できていなかった。以下は修正版のみの結果である。
 
 ### 8.1 学習（valid 50 件）
 

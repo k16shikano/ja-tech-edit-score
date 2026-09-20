@@ -1,6 +1,6 @@
 # ja-tech-edit-score
 
-現行の実験計画は [docs/PLAN.md](docs/PLAN.md)。何をしたくて何をやっているかは [BRIEF.md](BRIEF.md)。入口は `make help`。使うスクリプトは `scripts/`、探索用の旧スクリプトは `scripts-old/`。
+何をしたくて何をやっているかは [BRIEF.md](BRIEF.md)。入口は `make help`。使うスクリプトは `scripts/`、探索用の旧スクリプトは `scripts-old/`。
 
 日本語技術文書の **選好評価モデル**
 
@@ -127,7 +127,6 @@ make daemon-stop  # 停止
 | ファイル | 内容 |
 |----------|------|
 | [BRIEF.md](BRIEF.md) | 何をしたくて何をやっているか |
-| [docs/PLAN.md](docs/PLAN.md) | いまの手順とこのあと |
 | [docs/DATA.md](docs/DATA.md) | 学習データの作り方 |
 | [docs-old/WORKFLOW.md](docs-old/WORKFLOW.md) | 章推敲の手順（旧） |
 | [docs-old/SFT-DPO.md](docs-old/SFT-DPO.md) | 生成モデル向け SFT / DPO 構想メモ（旧） |

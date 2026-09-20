@@ -26,6 +26,7 @@
 生成はリポジトリルートで `make data`（hunk）または `make mine-sections`（節）を実行する。
 選好データの現行は `make pairsplit-data` / `make pref-keep-data`（`pref_keep_split_hunk/`、`pref_keep_split_section/`）。
 教師データ B の三つ組みは `section_middle/`。
+A1 学習側の三群生成で使う japanese-tech-writing のコピーは `a1_probe/`。
 作り方の計画は [docs/DATA.md](../docs/DATA.md)。
 旧い `pref_dataset` と `make train`（pref-static）は `scripts-old/`。
 推論の公開 CLI は同梱の `outputs/pref-static/` を参照する。
