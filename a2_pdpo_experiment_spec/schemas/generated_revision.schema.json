@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Generated generic revision",
+  "type": "object",
+  "required": [
+    "a2_id",
+    "sample_index",
+    "seed",
+    "generator",
+    "prompt_hash",
+    "text"
+  ],
+  "properties": {
+    "a2_id": {
+      "type": "string"
+    },
+    "sample_index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "seed": {
+      "type": "integer"
+    },
+    "generator": {
+      "type": "object"
+    },
+    "prompt_hash": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generation_metadata": {
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "P-DPO preference record",
+  "type": "object",
+  "required": [
+    "a2_id",
+    "split",
+    "draft",
+    "chosen",
+    "rejected",
+    "rejected_sample_index"
+  ],
+  "properties": {
+    "a2_id": {
+      "type": "string"
+    },
+    "split": {
+      "enum": [
+        "train",
+        "dev",
+        "test"
+      ]
+    },
+    "draft": {
+      "type": "string"
+    },
+    "chosen": {
+      "type": "string"
+    },
+    "rejected": {
+      "type": "string"
+    },
+    "rejected_sample_index": {
+      "type": "integer"
+    },
+    "source_weight": {
+      "type": "number"
+    }
+  }
+}

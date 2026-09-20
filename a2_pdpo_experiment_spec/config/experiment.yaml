@@ -1,0 +1,74 @@
+experiment:
+  name: a2_single_editor_pdpo
+  seed: 20260914
+
+data:
+  dataset_name: A2
+  expected_items: 379
+  split:
+    train: 303
+    dev: 38
+    test: 38
+  source_field: draft
+  human_field: human_revision
+
+generic_revision:
+  samples_per_source: 3
+  generator:
+    backend: transformers
+    model_name: Qwen/Qwen3-8B
+    quantization: 4bit_nf4
+    endpoint: http://127.0.0.1:8080
+  sampling:
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 40
+    repeat_penalty: 1.05
+    max_tokens: 8192
+  seed_formula: "experiment_seed + item_index * 100 + sample_index"
+  prompt_system_file: prompts/generic_revision_system.txt
+  prompt_user_file: prompts/generic_revision_user.txt
+
+training:
+  base_model: Qwen/Qwen3-8B
+  max_length: 2048
+  precision: bf16
+  quantization: 4bit_nf4
+  gradient_checkpointing: true
+
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.0
+    target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+      - gate_proj
+      - up_proj
+      - down_proj
+
+  pdpo:
+    beta_values: [0.05, 0.1, 0.2]
+    source_weighting: equal_per_A2_item
+    chosen: human_revision
+    rejected: generic_revision
+    rank_generic_revisions: false
+    use_draft_as_rejected: false
+
+training_runs:
+  run_pdpo: true
+
+diagnostics:
+  run_surface_feature_classifier: true
+
+evaluation:
+  fresh_generic_samples_per_test_source: 3
+  blind_generation_ab: true
+  primary_metric: per_source_human_vs_generic_accuracy
+  secondary_metrics:
+    - mean_margin
+    - median_margin
+    - per_source_margin
+    - length_correlation
